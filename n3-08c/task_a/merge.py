@@ -18,32 +18,81 @@ from utils.transforms import from_local_frame, yaw_to_quaternion  # noqa: E402
 def insert_object(target_points: np.ndarray, object_template: dict, position: Tuple[float, float, float],
                   ground_plane: Union[Plane, GroundModel]) -> np.ndarray:
     """Đặt template tại position = (x, y, yaw), đáy box chạm mặt đất -> augmented points (N+M, 5).
-
-    ground_plane: plane (a, b, c, d) hoặc GroundModel (độ cao cục bộ, chính xác hơn).
+    Xử lý xoá điểm background bị che khuất (occlusion) và điểm bên trong bounding box.
     """
+    from utils.transforms import points_in_cuboid
     x, y, yaw = position
-    h = object_template["size"][2]
-    center = [x, y, project_z_to_ground(x, y, ground_plane) + h / 2]
-    placed = from_local_frame(object_template["points"], center, yaw_to_quaternion(yaw))
-    # TODO: xoá điểm target nằm trong box mới (ground clutter).
-    # TODO: occlusion — xoá điểm target bị object mới che (range image theo azimuth/elevation),
-    #       và điểm object bị vật thể gần hơn che.
-    # TODO: gán lại ring theo elevation mới, resample theo beam pattern (1 return / beam).
-    # TODO: (tuỳ chọn) chỉnh intensity theo khoảng cách mới.
-    return np.concatenate([target_points, placed.astype(target_points.dtype)], axis=0)
+    size = object_template["size"]
+    h = size[2]
+    
+    # +- 15cm margin used for depth occlusion checking
+    ground_z = project_z_to_ground(x, y, ground_plane)
+    center = [x, y, ground_z + h / 2]
+    rot_quat = yaw_to_quaternion(yaw)
+    placed = from_local_frame(object_template["points"], center, rot_quat)
+    
+    # 1. Xoá điểm target nằm trong box mới
+    in_box_mask = points_in_cuboid(target_points, center, size, rot_quat)
+    target_points = target_points[~in_box_mask]
+    
+    # 2. Xử lý che khuất (Occlusion) bằng Range Image
+    all_points = np.concatenate([target_points, placed.astype(target_points.dtype)], axis=0)
+    
+    xyz = all_points[:, :3]
+    r = np.linalg.norm(xyz, axis=1)
+    # Lọc bỏ các điểm ở gốc tọa độ (r=0) để tránh lỗi chia 0
+    valid_r = r > 0.01
+    
+    xyz_valid = xyz[valid_r]
+    r_valid = r[valid_r]
+    
+    azimuth = np.arctan2(xyz_valid[:, 1], xyz_valid[:, 0])
+    elevation = np.arcsin(np.clip(xyz_valid[:, 2] / r_valid, -1.0, 1.0))
+    
+    num_azimuth = 3600  # 0.1 degree resolution
+    num_elevation = 64  # cover FOV
+    
+    az_bins = np.floor((azimuth + np.pi) / (2 * np.pi) * num_azimuth).astype(int) % num_azimuth
+    el_min, el_max = -0.6, 0.3
+    el_bins = np.floor((elevation - el_min) / (el_max - el_min) * num_elevation).astype(int)
+    el_bins = np.clip(el_bins, 0, num_elevation - 1)
+    
+    # Xây dựng depth map
+    depth_map = np.full((num_azimuth, num_elevation), np.inf)
+    
+    # Update depth_map with minimum depth for each bin
+    # We can use np.minimum.at for unbuffered in-place updates
+    np.minimum.at(depth_map, (az_bins, el_bins), r_valid)
+    
+    # Lọc các điểm bị che khuất: depth lớn hơn depth map + margin (0.15m)
+    margin_depth = 0.15
+    not_occluded = r_valid <= (depth_map[az_bins, el_bins] + margin_depth)
+    
+    # Tạo mask cho toàn bộ all_points
+    final_mask = np.zeros(len(all_points), dtype=bool)
+    final_mask[valid_r] = not_occluded
+    
+    augmented_points = all_points[final_mask]
+    
+    # Cập nhật số điểm của object (phần tử cuối cùng thuộc placed)
+    placed_mask = final_mask[-len(placed):]
+    object_template["final_num_pts"] = np.sum(placed_mask)
+    
+    return augmented_points
 
 
 def create_annotation(object_template: dict, position: Tuple[float, float, float], ground_z: float) -> dict:
     """Annotation dict (sensor frame) cho object vừa chèn."""
     x, y, yaw = position
     size: Sequence[float] = object_template["size"]
+    num_lidar_pts = object_template.get("final_num_pts", int(len(object_template["points"])))
     return {
         "token": uuid.uuid4().hex,
         "translation": [float(x), float(y), float(ground_z + size[2] / 2)],
         "size": [float(v) for v in size],
         "rotation": yaw_to_quaternion(yaw),
         "category": object_template["category"],
-        "num_lidar_pts": int(len(object_template["points"])),  # TODO: cập nhật sau occlusion
+        "num_lidar_pts": int(num_lidar_pts),
         "synthetic": True,
         "source_ann_token": object_template.get("ann_token"),
     }

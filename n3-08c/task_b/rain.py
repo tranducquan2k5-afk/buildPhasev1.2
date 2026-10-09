@@ -13,25 +13,36 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import config  # noqa: E402
 
-# Hệ số suy giảm intensity (1/m) theo level. TODO: thay bằng mô hình vật lý alpha = 0.01 * R^0.6 (R mm/h).
-ATTENUATION = {"light": 0.005, "moderate": 0.01, "heavy": 0.02}
+# Cường độ mưa (mm/h) tương ứng với từng level
+RAIN_RATES = {"light": 2.5, "moderate": 10.0, "heavy": 50.0}
 NOISE_MAX_RANGE = 10.0
 
 
 def simulate_rain(points: np.ndarray, intensity_level: str = "moderate",
                   rng: Optional[np.random.Generator] = None, return_labels: bool = False):
     """Mưa theo level trong config.RAIN_LEVELS: light / moderate / heavy.
-
-    Returns augmented points (K, 5); nếu return_labels thì thêm labels (K,) 0 = gốc, 1 = noise.
+    Đã áp dụng mô hình vật lý: alpha = 0.01 * R^0.6 và dropout theo khoảng cách.
     """
     if intensity_level not in config.RAIN_LEVELS:
         raise ValueError(f"intensity_level phải thuộc {list(config.RAIN_LEVELS)}")
     rng = rng or np.random.default_rng()
     p = config.RAIN_LEVELS[intensity_level]
+    
+    # Tính alpha theo mô hình vật lý
+    R_rate = RAIN_RATES.get(intensity_level, 10.0)
+    alpha = 0.01 * (R_rate ** 0.6)
 
-    # (1) Dropout ngẫu nhiên: beam bị giọt mưa chặn / hấp thụ
-    # TODO: dropout phụ thuộc khoảng cách (điểm xa dễ mất hơn).
-    kept = points[rng.random(len(points)) >= p["dropout"]].copy()
+    dist = np.linalg.norm(points[:, :3], axis=1)
+
+    # (1) Dropout phụ thuộc khoảng cách (điểm xa dễ bị hấp thụ/tán xạ hơn)
+    # Xác suất sống sót (survival) giảm theo e^(-beta * d)
+    # Chọn beta sao cho tỷ lệ dropout ở khoảng cách 30m tương đương với p["dropout"] trong config
+    beta = -np.log(max(1e-5, 1.0 - p["dropout"])) / 30.0
+    survival_prob = np.exp(-beta * dist)
+    
+    kept_mask = rng.random(len(points)) < survival_prob
+    kept = points[kept_mask].copy()
+    kept_dist = dist[kept_mask]
 
     # (2) Noise gần sensor: số điểm = noise_ratio * N, trong cầu bán kính 10 m
     n_noise = int(p["noise_ratio"] * len(points))
@@ -40,12 +51,14 @@ def simulate_rain(points: np.ndarray, intensity_level: str = "moderate",
     el = np.radians(rng.uniform(-30.67, 10.67, n_noise))  # FOV dọc HDL-32E
     noise = np.c_[r * np.cos(el) * np.cos(az), r * np.cos(el) * np.sin(az), r * np.sin(el),
                   rng.uniform(0, 5, n_noise), rng.integers(0, 32, n_noise)].astype(points.dtype)
-    # TODO: gắn noise theo đúng beam của sensor (ring/azimuth có thật) thay vì đều trong cầu.
 
     # (3) Suy giảm intensity theo khoảng cách (2 chiều): I' = I * exp(-2 * alpha * r)
-    dist = np.linalg.norm(kept[:, :3], axis=1)
-    kept[:, 3] *= np.exp(-2 * ATTENUATION[intensity_level] * dist)
-    # TODO: range noise (jitter dọc tia) tăng theo khoảng cách và rain rate.
+    kept[:, 3] *= np.exp(-2 * alpha * kept_dist)
+    
+    # Range noise (jitter dọc tia) tăng theo khoảng cách và rain rate
+    jitter = rng.normal(0, 0.01 * (R_rate ** 0.5) * (kept_dist / 30.0), len(kept))
+    # Dịch chuyển xyz dọc theo tia quét
+    kept[:, :3] *= (1.0 + jitter / np.maximum(kept_dist, 1e-3))[:, None]
 
     out = np.concatenate([kept, noise], axis=0)
     if return_labels:

@@ -28,22 +28,33 @@ def simulate_fog(points: np.ndarray, visibility: float = 50.0,
     rng = rng or np.random.default_rng()
     dist = np.linalg.norm(points[:, :3], axis=1)
 
-    # (1) Exp-decay dropout: điểm càng xa càng dễ mất
-    survival = np.exp(-dist / visibility)
-    # TODO: phụ thuộc reflectivity — điểm intensity cao (biển báo, vạch kẻ) sống sót lâu hơn.
-    kept = points[rng.random(len(points)) < survival].copy()
+    # Backscatter: xác định tia bị phản xạ ngược bởi sương mù.
+    # Sử dụng BACKSCATTER_REF làm tham chiếu cho sương đặc (V=20m)
+    ratio = min(1.0, BACKSCATTER_REF * 20.0 / visibility)
+    is_scatter = rng.random(len(points)) < ratio
+
+    # 1. Xử lý các điểm không bị backscatter (chịu suy giảm và dropout)
+    points_normal = points[~is_scatter].copy()
+    dist_normal = dist[~is_scatter]
+    
+    # Phụ thuộc reflectivity: điểm cường độ cao đâm xuyên sương tốt hơn
+    # Chuẩn hóa intensity (nuScenes: 0-255)
+    norm_intensity = np.clip(points_normal[:, 3] / 255.0, 0, 1)
+    # Tăng visibility hiệu dụng cho điểm sáng (điểm sáng có thể kéo dài visibility thêm tới 50%)
+    eff_visibility = visibility * (1.0 + 0.5 * norm_intensity)
+    
+    survival = np.exp(-dist_normal / eff_visibility)
+    kept_mask = rng.random(len(points_normal)) < survival
+    kept = points_normal[kept_mask]
     kept[:, 3] *= np.exp(-np.linalg.norm(kept[:, :3], axis=1) / visibility)  # intensity suy giảm
 
-    # (2) Backscatter: một phần beam phản xạ từ hạt sương ở gần sensor
-    ratio = min(1.0, BACKSCATTER_REF * 20.0 / visibility)
-    idx = rng.choice(len(points), int(ratio * len(points)), replace=False)
-    beams = points[idx]
-    d_beam = np.maximum(dist[idx], 1e-3)
-    r_scatter = np.minimum(rng.gamma(2.0, visibility / 20.0, len(idx)) + 1.0, d_beam)  # dọc tia, gần sensor
-    scatter = beams.copy()
-    scatter[:, :3] = beams[:, :3] * (r_scatter / d_beam)[:, None]
-    scatter[:, 3] = rng.uniform(0, 5, len(idx))
-    # TODO: backscatter nên thay thế điểm gốc của cùng beam (beam chỉ có 1 return) thay vì cộng thêm.
+    # 2. Xử lý các điểm bị backscatter (thay thế điểm gốc trên cùng tia quét)
+    scatter = points[is_scatter].copy()
+    d_beam = np.maximum(dist[is_scatter], 1e-3)
+    # Rút ngắn khoảng cách của tia (điểm tán xạ ngược luôn nằm gần sensor)
+    r_scatter = np.minimum(rng.gamma(2.0, visibility / 20.0, len(scatter)) + 1.0, d_beam)
+    scatter[:, :3] = scatter[:, :3] * (r_scatter / d_beam)[:, None]
+    scatter[:, 3] = rng.uniform(0, 5, len(scatter))
 
     out = np.concatenate([kept, scatter.astype(points.dtype)], axis=0)
     if return_labels:

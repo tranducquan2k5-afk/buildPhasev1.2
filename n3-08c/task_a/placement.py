@@ -50,40 +50,51 @@ def is_on_drivable(point_xy: Sequence[float], drivable_polygon: BaseGeometry) ->
 
 def sample_valid_position(drivable_polygon: BaseGeometry, existing_boxes: Sequence[dict],
                           object_size: Sequence[float], n_attempts: int = 100,
-                          rng: Optional[np.random.Generator] = None) -> Optional[Position]:
-    """Rejection sampling: (x, y) đều trong vành khuyên [MIN_DISTANCE, MAX_DISTANCE], yaw ngẫu nhiên.
-
+                          rng: Optional[np.random.Generator] = None,
+                          distance_range: Optional[Tuple[float, float]] = None) -> Optional[Position]:
+    """Rejection sampling: (x, y) đều trong vành khuyên, yaw ngẫu nhiên.
+    Nếu có distance_range, r sẽ được sample trong khoảng đó (để khớp khoảng cách template), 
+    ngược lại dùng [MIN_DISTANCE, MAX_DISTANCE].
+    
     Hợp lệ khi: tâm + toàn bộ footprint nằm trong drivable area và không va chạm BEV.
     Returns (x, y, yaw) hoặc None nếu hết n_attempts.
     """
     rng = rng or np.random.default_rng()
-    r_min, r_max = config.MIN_DISTANCE, config.MAX_DISTANCE
+    if distance_range is not None:
+        r_min, r_max = distance_range
+    else:
+        r_min, r_max = config.MIN_DISTANCE, config.MAX_DISTANCE
+        
+    # Đảm bảo r_min, r_max hợp lệ
+    r_min = max(0.5, r_min)
+    r_max = max(r_min + 1.0, r_max)
+
     for _ in range(n_attempts):
         r = np.sqrt(rng.uniform(r_min ** 2, r_max ** 2))  # đều theo diện tích
         phi = rng.uniform(-np.pi, np.pi)
         x, y = r * np.cos(phi), r * np.sin(phi)
         if not is_on_drivable((x, y), drivable_polygon):
             continue
-        # TODO: yaw theo hướng lane gần nhất (nusc_map.get_closest_lane + arcline_path_utils)
-        #       và giữ view_angle gần với template để mặt nhìn thấy khớp.
+        # TODO: yaw theo hướng lane gần nhất
         yaw = rng.uniform(-np.pi, np.pi)
         if not drivable_polygon.contains(bev_footprint((x, y), object_size, yaw)):
             continue
         new_box = {"translation": [x, y, 0.0], "size": list(object_size), "rotation": yaw_to_quaternion(yaw)}
         if check_collision_bev(new_box, existing_boxes):
             continue
-        # TODO: reject nếu box chứa nhiều điểm non-ground (vật cản không có annotation: cột, tường).
         return float(x), float(y), float(yaw)
     return None
 
 
 def sample_many(drivable_polygon: BaseGeometry, existing_boxes: Sequence[dict],
                 sizes: Sequence[Sequence[float]], n_attempts: int = 100,
-                rng: Optional[np.random.Generator] = None) -> List[Optional[Position]]:
+                rng: Optional[np.random.Generator] = None,
+                distance_ranges: Optional[Sequence[Tuple[float, float]]] = None) -> List[Optional[Position]]:
     """Đặt lần lượt nhiều object; object đã đặt được tính vào collision check của object sau."""
     boxes, out = list(existing_boxes), []
-    for size in sizes:
-        pos = sample_valid_position(drivable_polygon, boxes, size, n_attempts, rng)
+    for i, size in enumerate(sizes):
+        d_range = distance_ranges[i] if distance_ranges else None
+        pos = sample_valid_position(drivable_polygon, boxes, size, n_attempts, rng, distance_range=d_range)
         out.append(pos)
         if pos is not None:
             boxes.append({"translation": [pos[0], pos[1], 0.0], "size": list(size),

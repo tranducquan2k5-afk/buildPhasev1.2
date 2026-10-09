@@ -32,14 +32,20 @@ from utils.transforms import box_sensor_to_global  # noqa: E402
 
 
 def collect_templates(nusc, source_sample: Optional[str], source_anns: Optional[List[str]],
-                      num_objects: int) -> List[dict]:
-    """Template từ annotation chỉ định, hoặc num_objects object nhiều điểm nhất của source_sample."""
+                      num_objects: int, rng: Optional[np.random.Generator] = None) -> List[dict]:
+    """Template từ annotation chỉ định, hoặc random num_objects từ source_sample với mọi category."""
     if source_anns:
         return [extract_object_template(nusc, nusc.get("sample_annotation", a)["sample_token"], a)
                 for a in source_anns]
-    templates = extract_all_templates(nusc, source_sample, categories=["vehicle"])
-    # TODO: chọn template theo category / khoảng cách phù hợp với target thay vì nhiều điểm nhất.
-    return sorted(templates, key=lambda t: -len(t["points"]))[:num_objects]
+    templates = extract_all_templates(nusc, source_sample, categories=config.TEMPLATE_CATEGORIES)
+    
+    if not templates:
+        return []
+        
+    rng = rng or np.random.default_rng(config.SEED)
+    # Lựa chọn ngẫu nhiên để "chèn mọi thứ" thay vì chỉ chọn vật thể to nhất/nhiều điểm nhất
+    rng.shuffle(templates)
+    return templates[:num_objects]
 
 
 def run_insertion(nusc, target_token: str, templates: List[dict], n_attempts: int = 100,
@@ -59,7 +65,12 @@ def run_insertion(nusc, target_token: str, templates: List[dict], n_attempts: in
         layers = layers_for_category(tpl["category"])
         if layers not in areas:
             areas[layers] = get_map_area(nusc, nusc_map, target_token, layers)
-        pos = sample_valid_position(areas[layers], existing + new_anns, tpl["size"], n_attempts, rng)
+        
+        # Khớp khoảng cách: chèn vật thể ở khoảng cách tương đương với lúc trích xuất (± 5m)
+        orig_dist = tpl.get("distance", -1)
+        d_range = (orig_dist - 5.0, orig_dist + 5.0) if orig_dist > 0 else None
+            
+        pos = sample_valid_position(areas[layers], existing + new_anns, tpl["size"], n_attempts, rng, distance_range=d_range)
         if pos is None:
             continue
         points = insert_object(points, tpl, pos, ground)
@@ -109,8 +120,9 @@ if __name__ == "__main__":
     source = args.source_sample or nusc.sample[0]["token"]
     target = args.target or nusc.sample[10]["token"]
 
-    templates = collect_templates(nusc, source, args.source_ann, args.num_objects)
-    result = run_insertion(nusc, target, templates, args.n_attempts, np.random.default_rng(args.seed))
+    rng = np.random.default_rng(args.seed)
+    templates = collect_templates(nusc, source, args.source_ann, args.num_objects, rng=rng)
+    result = run_insertion(nusc, target, templates, args.n_attempts, rng)
     stem = save_result(result)
 
     print(f"target {target}: chèn {result['n_inserted']}/{result['n_requested']} objects "
