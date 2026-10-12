@@ -116,8 +116,8 @@ if __name__ == "__main__":
                 rng.integers(0, 32, 50000)].astype(np.float32)
                 
     out, lab = simulate_puddles(pts, num_puddles=10, max_radius=5.0, rng=rng, return_labels=True)
-    print(f"Mô phỏng vũng nước:")
-    print(f"Số điểm ban đầu: {len(pts)}")
-    print(f"Số điểm sau khi phản xạ gương: {len(out)}")
-    print(f"Số điểm vũng nước còn sót lại (giảm intensity): {np.sum(lab == 2)}")
-    print(f"Intensity trung bình toàn map: {pts[:, 3].mean():.1f} -> {out[:, 3].mean():.1f}")
+    print("Mo phong vung nuoc (puddles):")
+    print(f"  So diem ban dau: {len(pts)}")
+    print(f"  So diem sau khi phan xa guong: {len(out)}")
+    print(f"  So diem vung nuoc con sot lai: {np.sum(lab == 2)}")
+    print(f"  Intensity trung binh: {pts[:, 3].mean():.1f} -> {out[:, 3].mean():.1f}")
