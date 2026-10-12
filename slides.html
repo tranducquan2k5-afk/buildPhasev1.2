@@ -603,7 +603,7 @@
                     <div class="card-body">
                         • Quét 404 sample nuScenes.<br>
                         • Trích xuất <b>4.111 vật thể 3D</b>.<br>
-                        • Chuẩn hóa tọa độ tâm (Local Frame) kèm siêu dữ liệu khoảng cách gốc $d_{\text{orig}}$.
+                        • Chuẩn hóa tọa độ tâm (Local Frame) kèm siêu dữ liệu khoảng cách gốc d<sub>orig</sub>.
                     </div>
                 </div>
                 <div class="glass-card" style="border-color: var(--primary);">
@@ -612,15 +612,15 @@
                     <div class="card-body">
                         • <b>RANSAC + GroundModel:</b> Bánh xe chạm đất.<br>
                         • <b>Shapely BEV IoU:</b> 0% va chạm.<br>
-                        • <b>Distance Matching:</b> $\pm 5\text{m}$.<br>
-                        • <b>Range Image:</b> Khử nhìn xuyên thấu với sai số $\pm 15\text{cm}$.
+                        • <b>Distance Matching:</b> &plusmn; 5m.<br>
+                        • <b>Range Image:</b> Khử nhìn xuyên thấu với sai số &plusmn; 15cm.
                     </div>
                 </div>
                 <div class="glass-card" style="border-color: var(--secondary);">
                     <div style="font-size: 12px; color: var(--secondary); font-weight: 700;">GIAI ĐOẠN 3</div>
                     <div class="card-title">3. Task B: Weather</div>
                     <div class="card-body">
-                        • <b>Mưa:</b> $\alpha = 0.01 \cdot R^{0.6}$ + Range Jitter.<br>
+                        • <b>Mưa:</b> &alpha; = 0.01 &middot; R<sup>0.6</sup> + Range Jitter.<br>
                         • <b>Sương:</b> Tán xạ ngược (Backscatter).<br>
                         • <b>Vũng nước:</b> Phản xạ gương (Specular Reflection) mất 85% điểm mặt đường.
                     </div>
@@ -646,14 +646,14 @@
                     <div class="glass-card" style="margin-bottom: 16px;">
                         <div class="card-title" style="color: var(--accent-red);"><i class="fa-solid fa-xmark"></i> Vấn đề của phương pháp Baseline: "Xe tàng hình"</div>
                         <div class="card-body">
-                            Phương pháp ghép đè điểm thông thường chỉ đơn thuần gộp mảng <code>np.concatenate</code>. Tia laser đâm xuyên qua thân xe, khiến toàn bộ cảnh vật phía sau (cột điện, cây cối, xe khác) vẫn hiển thị nguyên vẹn $\rightarrow$ Sai lệch hoàn toàn về hình học quang học.
+                            Phương pháp ghép đè điểm thông thường chỉ đơn thuần gộp mảng <code>np.concatenate</code>. Tia laser đâm xuyên qua thân xe, khiến toàn bộ cảnh vật phía sau (cột điện, cây cối, xe khác) vẫn hiển thị nguyên vẹn &rarr; Sai lệch hoàn toàn về hình học quang học.
                         </div>
                     </div>
                     <div class="glass-card" style="border-color: var(--accent-green);">
                         <div class="card-title" style="color: var(--accent-green);"><i class="fa-solid fa-check"></i> Giải pháp NovaTeam v1.2: Range Image Depth Map</div>
                         <div class="card-body">
-                            1. Chiếu toàn bộ điểm sang hệ tọa độ cầu $(\text{Azimuth}, \text{Elevation})$ để tạo bản đồ độ sâu 2D.<br>
-                            2. <b>Dung sai vật lý $\pm 15\text{ cm}$:</b> Loại bỏ các điểm background nằm sau bề mặt xe vượt quá $15\text{cm}$, bảo toàn 100% hình dạng xe.<br>
+                            1. Chiếu toàn bộ điểm sang hệ tọa độ cầu <b>(Azimuth, Elevation)</b> để tạo bản đồ độ sâu 2D.<br>
+                            2. <b>Dung sai vật lý &plusmn; 15 cm:</b> Loại bỏ các điểm background nằm sau bề mặt xe vượt quá 15cm, bảo toàn 100% hình dạng xe.<br>
                             3. <b>Làm sạch lòng hộp (Ground Clutter):</b> Tự động xóa sạch các điểm mặt đường nằm lọt trong thể tích 3D của chiếc xe mới.
                         </div>
                     </div>
@@ -681,11 +681,11 @@
             <div class="card-grid grid-2">
                 <div class="glass-card">
                     <div class="card-icon"><i class="fa-solid fa-ruler-combined"></i></div>
-                    <div class="card-title">Khớp khoảng cách (Distance Matching $\pm 5\text{ m}$)</div>
+                    <div class="card-title">Khớp khoảng cách (Distance Matching &plusmn; 5 m)</div>
                     <div class="card-body">
                         • <b>Quy luật phân kỳ quang học:</b> Vật thể ở xa sẽ có mật độ chùm tia quét thưa hơn vật thể ở gần.<br>
-                        • <b>Thuật toán:</b> Rejection Sampling đọc metadata khoảng cách gốc $d_{\text{orig}}$ từ Template Bank và ép buộc vị trí chèn mới nằm trong vành khuyên:
-                        <div class="formula-box">r \in [d_{\text{orig}} - 5\text{m}, d_{\text{orig}} + 5\text{m}]</div>
+                        • <b>Thuật toán:</b> Rejection Sampling đọc metadata khoảng cách gốc d<sub>orig</sub> từ Template Bank và ép buộc vị trí chèn mới nằm trong vành khuyên:
+                        <div class="formula-box">r &isin; [d<sub>orig</sub> - 5m, d<sub>orig</sub> + 5m]</div>
                         • <b>Kết quả:</b> Loại bỏ hiện tượng xe ở xa ít điểm bị ép chèn ngay trước mũi cảm biến.
                     </div>
                 </div>
@@ -696,8 +696,8 @@
                     <div class="card-body">
                         • Thay vì chỉ chèn Ô tô (`vehicle.car`), NovaTeam cho phép lấy mẫu ngẫu nhiên toàn bộ 14 danh mục vật thể.<br>
                         • <b>Tự động ánh xạ bản đồ vector (Map-Aware Placement):</b><br>
-                        &nbsp;&nbsp;+ Ô tô, xe tải, xe máy $\rightarrow$ Đặt trên <code>drivable_area</code>.<br>
-                        &nbsp;&nbsp;+ Người đi bộ, xe đẩy $\rightarrow$ Đặt trên <code>walkway</code> hoặc <code>ped_crossing</code>.<br>
+                        &nbsp;&nbsp;+ Ô tô, xe tải, xe máy &rarr; Đặt trên <code>drivable_area</code>.<br>
+                        &nbsp;&nbsp;+ Người đi bộ, xe đẩy &rarr; Đặt trên <code>walkway</code> hoặc <code>ped_crossing</code>.<br>
                         • <b>Kiểm tra va chạm BEV IoU:</b> Ngưỡng khắt khe <code>0.0</code> đảm bảo không chồng lấn footprint.
                     </div>
                 </div>
@@ -711,12 +711,12 @@
             <div class="card-grid grid-3">
                 <div class="glass-card">
                     <div class="card-icon"><i class="fa-solid fa-cloud-rain"></i></div>
-                    <div class="card-title">Mô phỏng Mưa theo Beer-Lambert</div>
+                    <div class="card-title">Mô phỏng Mưa theo Beer–Lambert</div>
                     <div class="card-body">
                         • Cường độ suy giảm theo hàm mũ:
-                        <div class="formula-box" style="font-size: 13px;">I' = I \cdot e^{-2\alpha r}</div>
+                        <div class="formula-box" style="font-size: 15px;">I' = I &middot; e<sup>-2&alpha;r</sup></div>
                         • Hệ số suy giảm vật lý quang học khí quyển:
-                        <div class="formula-box" style="font-size: 13px;">\alpha = 0.01 \cdot R^{0.6}</div>
+                        <div class="formula-box" style="font-size: 15px;">&alpha; = 0.01 &middot; R<sup>0.6</sup></div>
                         • Điểm xa chịu tỉ lệ dropout cao hơn điểm gần.<br>
                         • Thêm độ rung lắc khoảng cách (Range Jitter).
                     </div>
@@ -787,11 +787,11 @@
             <h2 class="slide-title">TRỰC QUAN HÓA 3D CHỨNG MINH TÍNH CHÂN THỰC</h2>
             <div class="image-preview-container">
                 <div class="image-frame" style="flex: 1.3;">
-                    <img src="../output/vis/3d_multi_view_report_023c4df2d451409881d8e6ea82f14704.png" alt="3D Multi View Report">
+                    <img src="output/vis/3d_multi_view_report_023c4df2d451409881d8e6ea82f14704.png" alt="3D Multi View Report">
                     <div class="image-caption">Bảng tổng hợp 4 góc nhìn 3D khoa học (Isometric, Close-up, Driver Perspective, BEV)</div>
                 </div>
                 <div class="image-frame" style="flex: 0.9;">
-                    <img src="../output/vis/3d_closeup_truck_023c4df2d451409881d8e6ea82f14704.png" alt="3D Closeup Truck">
+                    <img src="output/vis/3d_closeup_truck_023c4df2d451409881d8e6ea82f14704.png" alt="3D Closeup Truck">
                     <div class="image-caption">Cận cảnh 3D Xe tải: Thấy rõ vệt bóng đen (Occlusion) che khuất cảnh vật phía sau xe</div>
                 </div>
             </div>
