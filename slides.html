@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaTeam (035) - N3-08C Synthetic Point Cloud Augmentation</title>
+    <!-- Google Fonts & Font Awesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #070b14;
+            --bg-card: rgba(16, 24, 46, 0.75);
+            --border-card: rgba(0, 242, 254, 0.2);
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --accent-green: #00ff88;
+            --accent-orange: #ff9900;
+            --accent-red: #ff3366;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Background grid effect */
+        .bg-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.12) 0%, transparent 70%);
+            top: -100px;
+            right: -100px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            height: 54px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background: rgba(10, 15, 30, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .team-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge-num {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #000;
+            font-weight: 800;
+            font-size: 13px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .team-name {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .project-tag {
+            font-size: 12px;
+            color: var(--primary);
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Slide Container */
+        .slide-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            padding: 40px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(40px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+
+        /* Bottom Control Bar */
+        .bottom-bar {
+            height: 60px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .progress-bar-container {
+            flex: 1;
+            max-width: 400px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 20px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 10%;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            transition: width 0.3s ease;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 242, 254, 0.2);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+        }
+
+        .slide-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-muted);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* Typography & Elements */
+        .title-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .slide-title {
+            font-size: 38px;
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .slide-desc {
+            font-size: 17px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            max-width: 800px;
+            margin-bottom: 25px;
+        }
+
+        /* Grid Cards */
+        .card-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+        .glass-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 22px;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(0, 242, 254, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-icon {
+            font-size: 24px;
+            color: var(--primary);
+            margin-bottom: 14px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .card-body {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Member Card Specific */
+        .member-card {
+            text-align: center;
+            padding: 24px 16px;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+
+        .member-card.leader {
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.15);
+        }
+
+        .member-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 2px solid var(--primary);
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: var(--primary);
+        }
+
+        .member-card.leader .member-avatar {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .member-name {
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .member-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tag.highlight {
+            background: rgba(0, 242, 254, 0.12);
+            color: var(--primary);
+            border-color: rgba(0, 242, 254, 0.3);
+            font-weight: 600;
+        }
+
+        /* Metric Highlight Box */
+        .metric-box {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(79, 172, 254, 0.05));
+            border: 1px solid var(--primary);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .metric-val {
+            font-size: 44px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(90deg, var(--accent-green), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cbd5e1;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Image Display Box */
+        .image-preview-container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            height: 380px;
+        }
+
+        .image-frame {
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: #000;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .image-caption {
+            background: rgba(10, 15, 30, 0.9);
+            padding: 8px 12px;
+            font-size: 12px;
+            text-align: center;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Formula Box */
+        .formula-box {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px dashed var(--primary);
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 15px;
+            color: var(--primary);
+            margin: 10px 0;
+            display: inline-block;
+        }
+
+        /* Slide specific styles */
+        .slide-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+
+        .hero-left {
+            flex: 1.2;
+        }
+
+        .hero-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="team-badge">
+            <span class="badge-num">035</span>
+            <span class="team-name">NovaTeam</span>
+        </div>
+        <div class="project-tag">
+            <i class="fa-solid fa-cube"></i> Đề tài N3-08C (Build Phase)
+        </div>
+    </header>
+
+    <!-- Slide Content Wrapper -->
+    <main class="slide-container">
+        
+        <!-- SLIDE 1: Title Slide -->
+        <section class="slide active" id="slide-1">
+            <div class="title-badge"><i class="fa-solid fa-microchip"></i> Báo cáo kết quả dự án Build Phase</div>
+            <h1 class="slide-title" style="font-size: 46px; max-width: 950px;">
+                SYNTHETIC POINT CLOUD AUGMENTATION CHO XE TỰ LÁI
+            </h1>
+            <p class="slide-desc" style="font-size: 19px;">
+                Phương pháp chèn vật thể chuẩn hình học và mô phỏng thời tiết dựa trên định luật vật lý LiDAR cho giao thông Việt Nam
+            </p>
+            <div style="display: flex; gap: 16px; align-items: center; margin-top: 10px;">
+                <div class="glass-card" style="padding: 12px 24px; border-color: var(--primary);">
+                    <div style="font-size: 12px; color: var(--text-muted);">ĐỘI THI</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #fff;">NovaTeam (035)</div>
+                </div>
+                <div class="glass-card" style="padding: 12px 24px; border-color: var(--accent-green);">
+                    <div style="font-size: 12px; color: var(--text-muted);">PHÂN HẠNG ĐỀ TÀI</div>
+                    <div style="font-size: 18px; font-weight: 800; color: var(--accent-green);">Cấp độ Nâng cao (Advanced)</div>
+                </div>
+                <div class="glass-card" style="padding: 12px 24px;">
+                    <div style="font-size: 12px; color: var(--text-muted);">PHIÊN BẢN</div>
+                    <div style="font-size: 18px; font-weight: 800; color: var(--secondary);">v1.2 (Physics Update)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: Team Members -->
+        <section class="slide" id="slide-2">
+            <div class="title-badge"><i class="fa-solid fa-users"></i> Thành viên đội thi</div>
+            <h2 class="slide-title">ĐỘI NGŨ THỰC HIỆN — NOVATEAM (035)</h2>
+            <p class="slide-desc">5 thành viên phối hợp chặt chẽ từ Data Pipeline, Computer Vision đến Kiểm thử chất lượng dữ liệu</p>
+            
+            <div class="card-grid grid-5">
+                <!-- 1. Bạch Khánh An -->
+                <div class="member-card leader">
+                    <div class="member-avatar"><i class="fa-solid fa-crown"></i></div>
+                    <div class="member-name">BẠCH KHÁNH AN</div>
+                    <div class="member-id">2A202602095 • D302</div>
+                    <div class="tag-list">
+                        <span class="tag highlight">Team Leader</span>
+                        <span class="tag">Data Pipeline</span>
+                        <span class="tag">Automation</span>
+                        <span class="tag">Thị giác máy tính</span>
+                    </div>
+                </div>
+
+                <!-- 2. Nguyễn Đình Bảo Phúc -->
+                <div class="member-card">
+                    <div class="member-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+                    <div class="member-name">NGUYỄN ĐÌNH BẢO PHÚC</div>
+                    <div class="member-id">2A202602162 • D302</div>
+                    <div class="tag-list">
+                        <span class="tag highlight">Cloud / DevOps</span>
+                        <span class="tag">Backend</span>
+                        <span class="tag">Data Pipeline</span>
+                        <span class="tag">Quản lý chất lượng</span>
+                    </div>
+                </div>
+
+                <!-- 3. Dư Văn Sang -->
+                <div class="member-card">
+                    <div class="member-avatar"><i class="fa-solid fa-robot"></i></div>
+                    <div class="member-name">DƯ VĂN SANG</div>
+                    <div class="member-id">2A202602330 • D302</div>
+                    <div class="tag-list">
+                        <span class="tag highlight">Xe tự hành / Robotaxi</span>
+                        <span class="tag">Computer Vision</span>
+                        <span class="tag">Hạ tầng dữ liệu</span>
+                    </div>
+                </div>
+
+                <!-- 4. Nguyễn Công Bình -->
+                <div class="member-card">
+                    <div class="member-avatar"><i class="fa-solid fa-brain"></i></div>
+                    <div class="member-name">NGUYỄN CÔNG BÌNH</div>
+                    <div class="member-id">2A202602278 • D302</div>
+                    <div class="tag-list">
+                        <span class="tag highlight">Annotation QC</span>
+                        <span class="tag">Computer Vision</span>
+                        <span class="tag">Project Management</span>
+                    </div>
+                </div>
+
+                <!-- 5. Trần Đức Quân -->
+                <div class="member-card">
+                    <div class="member-avatar"><i class="fa-solid fa-code"></i></div>
+                    <div class="member-name">TRẦN ĐỨC QUÂN</div>
+                    <div class="member-id">2A202602260 • D302</div>
+                    <div class="tag-list">
+                        <span class="tag highlight">3D / LiDAR Annotation</span>
+                        <span class="tag">Xe tự hành</span>
+                        <span class="tag">Scripting & Python</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: Problem & Background -->
+        <section class="slide" id="slide-3">
+            <div class="title-badge"><i class="fa-solid fa-triangle-exclamation"></i> Đặt vấn đề & Thách thức</div>
+            <h2 class="slide-title">THÁCH THỨC CỦA XE TỰ LÁI TRONG THỜI TIẾT KHẮC NGHIỆT</h2>
+            <div class="card-grid grid-3">
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-cloud-showers-heavy"></i></div>
+                    <div class="card-title">Dữ liệu thời tiết xấu cực hiếm</div>
+                    <div class="card-body">
+                        Các tập dữ liệu xe tự lái lớn (nuScenes, Waymo) chủ yếu thu thập trong điều kiện trời nắng đẹp. Dữ liệu mưa bão, ngập lụt thực tế chiếm chưa đầy 3% vì rủi ro an toàn và chi phí vận hành khổng lồ.
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-car-burst"></i></div>
+                    <div class="card-title">Mô hình AI bị suy giảm mAP</div>
+                    <div class="card-body">
+                        Khi gặp mưa lớn hoặc sương mù dày, cảm biến LiDAR bị tán xạ, suy hao cường độ và mất điểm trầm trọng. Mô hình 3D Object Detection tiêu chuẩn thường bị sụt giảm từ 30% đến 50% độ chính xác.
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-motorcycle"></i></div>
+                    <div class="card-title">Đặc thù giao thông Việt Nam</div>
+                    <div class="card-body">
+                        Đường xá Việt Nam đặc trưng bởi mưa rào nhiệt đới gây <b>vũng nước ngập phản xạ tia laser</b>, mật độ xe máy dày đặc và các chướng ngại vật di động (rào chắn, xe lôi) đan xen phức tạp.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: Architecture Overview -->
+        <section class="slide" id="slide-4">
+            <div class="title-badge"><i class="fa-solid fa-diagram-project"></i> Thiết kế hệ thống</div>
+            <h2 class="slide-title">KIẾN TRÚC PIPELINE END-TO-END (NOVATEAM v1.2)</h2>
+            <p class="slide-desc">Quy trình tự động hóa khép kín từ trích xuất template đến chèn hình học và phủ lớp vật lý thời tiết</p>
+            
+            <div class="card-grid grid-4">
+                <div class="glass-card">
+                    <div style="font-size: 12px; color: var(--primary); font-weight: 700;">GIAI ĐOẠN 1</div>
+                    <div class="card-title">1. Template Bank</div>
+                    <div class="card-body">
+                        • Quét 404 sample nuScenes.<br>
+                        • Trích xuất <b>4.111 vật thể 3D</b>.<br>
+                        • Chuẩn hóa tọa độ tâm (Local Frame) kèm siêu dữ liệu khoảng cách gốc $d_{\text{orig}}$.
+                    </div>
+                </div>
+                <div class="glass-card" style="border-color: var(--primary);">
+                    <div style="font-size: 12px; color: var(--primary); font-weight: 700;">GIAI ĐOẠN 2</div>
+                    <div class="card-title">2. Task A: Insertion</div>
+                    <div class="card-body">
+                        • <b>RANSAC + GroundModel:</b> Bánh xe chạm đất.<br>
+                        • <b>Shapely BEV IoU:</b> 0% va chạm.<br>
+                        • <b>Distance Matching:</b> $\pm 5\text{m}$.<br>
+                        • <b>Range Image:</b> Khử nhìn xuyên thấu với sai số $\pm 15\text{cm}$.
+                    </div>
+                </div>
+                <div class="glass-card" style="border-color: var(--secondary);">
+                    <div style="font-size: 12px; color: var(--secondary); font-weight: 700;">GIAI ĐOẠN 3</div>
+                    <div class="card-title">3. Task B: Weather</div>
+                    <div class="card-body">
+                        • <b>Mưa:</b> $\alpha = 0.01 \cdot R^{0.6}$ + Range Jitter.<br>
+                        • <b>Sương:</b> Tán xạ ngược (Backscatter).<br>
+                        • <b>Vũng nước:</b> Phản xạ gương (Specular Reflection) mất 85% điểm mặt đường.
+                    </div>
+                </div>
+                <div class="glass-card" style="border-color: var(--accent-green);">
+                    <div style="font-size: 12px; color: var(--accent-green); font-weight: 700;">GIAI ĐOẠN 4</div>
+                    <div class="card-title">4. Deliverables</div>
+                    <div class="card-body">
+                        • Xuất file `.bin` (Point cloud) + `.json` (3D Bounding Box chuẩn nuScenes).<br>
+                        • Tốc độ sinh: <b>> 1.150 scenes/giờ</b>.<br>
+                        • Sẵn sàng train mô hình 3D AI.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: Task A Occlusion Handling -->
+        <section class="slide" id="slide-5">
+            <div class="title-badge"><i class="fa-solid fa-shield-halved"></i> Đột phá kỹ thuật Task A</div>
+            <h2 class="slide-title">KHỬ CHE KHUẤT (OCCLUSION) BẰNG RANGE IMAGE RAY CASTING</h2>
+            <div class="slide-hero">
+                <div class="hero-left">
+                    <div class="glass-card" style="margin-bottom: 16px;">
+                        <div class="card-title" style="color: var(--accent-red);"><i class="fa-solid fa-xmark"></i> Vấn đề của phương pháp Baseline: "Xe tàng hình"</div>
+                        <div class="card-body">
+                            Phương pháp ghép đè điểm thông thường chỉ đơn thuần gộp mảng <code>np.concatenate</code>. Tia laser đâm xuyên qua thân xe, khiến toàn bộ cảnh vật phía sau (cột điện, cây cối, xe khác) vẫn hiển thị nguyên vẹn $\rightarrow$ Sai lệch hoàn toàn về hình học quang học.
+                        </div>
+                    </div>
+                    <div class="glass-card" style="border-color: var(--accent-green);">
+                        <div class="card-title" style="color: var(--accent-green);"><i class="fa-solid fa-check"></i> Giải pháp NovaTeam v1.2: Range Image Depth Map</div>
+                        <div class="card-body">
+                            1. Chiếu toàn bộ điểm sang hệ tọa độ cầu $(\text{Azimuth}, \text{Elevation})$ để tạo bản đồ độ sâu 2D.<br>
+                            2. <b>Dung sai vật lý $\pm 15\text{ cm}$:</b> Loại bỏ các điểm background nằm sau bề mặt xe vượt quá $15\text{cm}$, bảo toàn 100% hình dạng xe.<br>
+                            3. <b>Làm sạch lòng hộp (Ground Clutter):</b> Tự động xóa sạch các điểm mặt đường nằm lọt trong thể tích 3D của chiếc xe mới.
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-right">
+                    <div class="metric-box">
+                        <div class="metric-val">± 15 cm</div>
+                        <div class="metric-label">Ngưỡng dung sai vật lý tối ưu</div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 10px;">
+                            Bù trừ độ rung lắc cơ học và sai số tán xạ tự nhiên của đầu thu Velodyne LiDAR
+                        </p>
+                    </div>
+                    <div class="metric-box" style="border-color: var(--accent-green);">
+                        <div class="metric-val">100%</div>
+                        <div class="metric-label">Xóa điểm xuyên thấu sau xe</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: Task A Distance Matching & Multi-Category -->
+        <section class="slide" id="slide-6">
+            <div class="title-badge"><i class="fa-solid fa-arrows-split-up-and-left"></i> Tính chân thực hình học</div>
+            <h2 class="slide-title">DISTANCE MATCHING & CHIẾN LƯỢC "CHÈN MỌI THỨ"</h2>
+            <div class="card-grid grid-2">
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-ruler-combined"></i></div>
+                    <div class="card-title">Khớp khoảng cách (Distance Matching $\pm 5\text{ m}$)</div>
+                    <div class="card-body">
+                        • <b>Quy luật phân kỳ quang học:</b> Vật thể ở xa sẽ có mật độ chùm tia quét thưa hơn vật thể ở gần.<br>
+                        • <b>Thuật toán:</b> Rejection Sampling đọc metadata khoảng cách gốc $d_{\text{orig}}$ từ Template Bank và ép buộc vị trí chèn mới nằm trong vành khuyên:
+                        <div class="formula-box">r \in [d_{\text{orig}} - 5\text{m}, d_{\text{orig}} + 5\text{m}]</div>
+                        • <b>Kết quả:</b> Loại bỏ hiện tượng xe ở xa ít điểm bị ép chèn ngay trước mũi cảm biến.
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-shuffle"></i></div>
+                    <div class="card-title">Chiến lược "Chèn mọi thứ" (14 Categories)</div>
+                    <div class="card-body">
+                        • Thay vì chỉ chèn Ô tô (`vehicle.car`), NovaTeam cho phép lấy mẫu ngẫu nhiên toàn bộ 14 danh mục vật thể.<br>
+                        • <b>Tự động ánh xạ bản đồ vector (Map-Aware Placement):</b><br>
+                        &nbsp;&nbsp;+ Ô tô, xe tải, xe máy $\rightarrow$ Đặt trên <code>drivable_area</code>.<br>
+                        &nbsp;&nbsp;+ Người đi bộ, xe đẩy $\rightarrow$ Đặt trên <code>walkway</code> hoặc <code>ped_crossing</code>.<br>
+                        • <b>Kiểm tra va chạm BEV IoU:</b> Ngưỡng khắt khe <code>0.0</code> đảm bảo không chồng lấn footprint.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: Task B Weather Physics & Puddles -->
+        <section class="slide" id="slide-7">
+            <div class="title-badge"><i class="fa-solid fa-cloud-bolt"></i> Đột phá kỹ thuật Task B</div>
+            <h2 class="slide-title">MÔ HÌNH VẬT LÝ THỜI TIẾT & VŨNG NƯỚC VIỆT NAM</h2>
+            <div class="card-grid grid-3">
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-cloud-rain"></i></div>
+                    <div class="card-title">Mô phỏng Mưa theo Beer-Lambert</div>
+                    <div class="card-body">
+                        • Cường độ suy giảm theo hàm mũ:
+                        <div class="formula-box" style="font-size: 13px;">I' = I \cdot e^{-2\alpha r}</div>
+                        • Hệ số suy giảm vật lý quang học khí quyển:
+                        <div class="formula-box" style="font-size: 13px;">\alpha = 0.01 \cdot R^{0.6}</div>
+                        • Điểm xa chịu tỉ lệ dropout cao hơn điểm gần.<br>
+                        • Thêm độ rung lắc khoảng cách (Range Jitter).
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="card-icon"><i class="fa-solid fa-smog"></i></div>
+                    <div class="card-title">Sương mù & Tán xạ ngược</div>
+                    <div class="card-body">
+                        • <b>Tán xạ ngược (Backscatter) vật lý:</b> Thay vì thêm điểm rác, tia bị chặn và dội lại sớm tại hạt sương sát cảm biến (1 return/beam).<br>
+                        • <b>Xuyên thấu theo độ phản quang (Reflectivity):</b> Vật thể có intensity cao (biển báo dạ quang, vạch kẻ đường) có tầm nhìn hiệu dụng xa hơn 50%.
+                    </div>
+                </div>
+
+                <div class="glass-card" style="border-color: var(--primary);">
+                    <div class="card-icon"><i class="fa-solid fa-water"></i></div>
+                    <div class="card-title">Mặt đường ướt / Vũng nước</div>
+                    <div class="card-body">
+                        • <b>Đặc thù giao thông Việt Nam:</b> Ngập nước đọng trên mặt đường sau mưa bão.<br>
+                        • <b>Phản xạ gương (Specular Reflection):</b> Tia laser chiếu xuống mặt nước bị dội đi hướng khác.<br>
+                        • <b>Kết quả:</b> Mất <b>85% điểm mặt đường</b> tại vùng có nước, intensity các điểm còn lại giảm về 30%.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: Experimental Results & KPIs -->
+        <section class="slide" id="slide-8">
+            <div class="title-badge"><i class="fa-solid fa-chart-line"></i> Kết quả thực nghiệm</div>
+            <h2 class="slide-title">KẾT QUẢ ĐO LƯỜNG KPI ĐẠT CHUẨN XUẤT SẮC</h2>
+            
+            <div class="card-grid grid-4" style="margin-bottom: 24px;">
+                <div class="metric-box">
+                    <div class="metric-val">1.0</div>
+                    <div class="metric-label">Tỉ lệ hợp lệ (Valid Rate)</div>
+                    <div style="font-size: 12px; color: var(--accent-green); margin-top: 6px;">100% không va chạm, đúng đường</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-val">1.176</div>
+                    <div class="metric-label">Thông lượng (Scenes / Giờ)</div>
+                    <div style="font-size: 12px; color: var(--primary); margin-top: 6px;">Chỉ mất ~2.5s cho 1 scene 3D</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-val">4.111</div>
+                    <div class="metric-label">Template 3D trích xuất</div>
+                    <div style="font-size: 12px; color: var(--secondary); margin-top: 6px;">Đầy đủ 14 nhóm danh mục</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-val">100</div>
+                    <div class="metric-label">Scenes nhân tạo bàn giao</div>
+                    <div style="font-size: 12px; color: var(--accent-orange); margin-top: 6px;">200 files (.bin + .json)</div>
+                </div>
+            </div>
+
+            <div class="glass-card" style="padding: 16px 24px;">
+                <div style="font-size: 15px; font-weight: 700; margin-bottom: 8px; color: #fff;">
+                    <i class="fa-solid fa-bolt"></i> Tối ưu hóa hiệu năng bằng Numpy Vectorization
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                    Toàn bộ thuật toán Range Image, kiểm tra Bounding Box 3D và lọc vũng nước đều được cài đặt bằng ma trận hóa vector (Numpy Masking), loại bỏ hoàn toàn vòng lặp Python qua từng điểm. Nhờ đó, thông lượng hệ thống duy trì ổn định ở mức <b>> 1.000 scene/giờ</b> trên máy tính cá nhân tiêu chuẩn.
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 9: 3D Visualization Proof -->
+        <section class="slide" id="slide-9">
+            <div class="title-badge"><i class="fa-solid fa-eye"></i> Minh chứng trực quan</div>
+            <h2 class="slide-title">TRỰC QUAN HÓA 3D CHỨNG MINH TÍNH CHÂN THỰC</h2>
+            <div class="image-preview-container">
+                <div class="image-frame" style="flex: 1.3;">
+                    <img src="../output/vis/3d_multi_view_report_023c4df2d451409881d8e6ea82f14704.png" alt="3D Multi View Report">
+                    <div class="image-caption">Bảng tổng hợp 4 góc nhìn 3D khoa học (Isometric, Close-up, Driver Perspective, BEV)</div>
+                </div>
+                <div class="image-frame" style="flex: 0.9;">
+                    <img src="../output/vis/3d_closeup_truck_023c4df2d451409881d8e6ea82f14704.png" alt="3D Closeup Truck">
+                    <div class="image-caption">Cận cảnh 3D Xe tải: Thấy rõ vệt bóng đen (Occlusion) che khuất cảnh vật phía sau xe</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 10: Deliverables & Conclusion -->
+        <section class="slide" id="slide-10">
+            <div class="title-badge"><i class="fa-solid fa-box-archive"></i> Tổng kết & Bàn giao</div>
+            <h2 class="slide-title">SẢN PHẨM BÀN GIAO & GIÁ TRỊ THỰC TIỄN</h2>
+            
+            <div class="card-grid grid-3" style="margin-bottom: 25px;">
+                <div class="glass-card" style="border-color: var(--primary);">
+                    <div class="card-icon"><i class="fa-brands fa-github"></i></div>
+                    <div class="card-title">Mã nguồn Hoàn chỉnh v1.2</div>
+                    <div class="card-body">
+                        Đã đóng gói và đồng bộ hóa trên GitHub:<br>
+                        <code>tranducquan2k5-afk/buildPhasev1.2</code><br>
+                        Đạt chuẩn kiểm thử tự động, module hóa rõ ràng, dễ bảo trì.
+                    </div>
+                </div>
+
+                <div class="glass-card" style="border-color: var(--secondary);">
+                    <div class="card-icon"><i class="fa-solid fa-cloud-showers-water"></i></div>
+                    <div class="card-title">vietnam_monsoon_dataset</div>
+                    <div class="card-body">
+                        <b>50 scene nhân tạo</b> đặc thù Việt Nam.<br>
+                        Chèn ngẫu nhiên 2-5 vật thể/scene, kết hợp mưa lớn và vũng nước ngập gây mất điểm LiDAR trên mặt đường.
+                    </div>
+                </div>
+
+                <div class="glass-card" style="border-color: var(--accent-green);">
+                    <div class="card-icon"><i class="fa-solid fa-smog"></i></div>
+                    <div class="card-title">fog_dense_dataset</div>
+                    <div class="card-body">
+                        <b>50 scene nhân tạo</b> sương mù dày.<br>
+                        Tầm nhìn giới hạn 20m, áp dụng tán xạ ngược và độ phản quang vật lý của biển báo giao thông.
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 10px;">
+                <h3 style="font-size: 22px; color: #fff; margin-bottom: 8px;">CẢM ƠN QUÝ THẦY CÔ & HỘI ĐỒNG ĐÃ LẮNG NGHE!</h3>
+                <p style="font-size: 15px; color: var(--primary); font-weight: 600;">NovaTeam (035) sẵn sàng bước vào phần Hỏi - Đáp (Q&A)</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Controls -->
+    <footer class="bottom-bar">
+        <button class="nav-btn" id="prev-btn"><i class="fa-solid fa-chevron-left"></i> Trước</button>
+        
+        <div style="display: flex; align-items: center;">
+            <div class="slide-counter"><span id="curr-idx">1</span> / <span id="total-idx">10</span></div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button class="nav-btn" id="fullscreen-btn" title="Toàn màn hình"><i class="fa-solid fa-expand"></i></button>
+            <button class="nav-btn" id="next-btn" style="background: rgba(0, 242, 254, 0.2); border-color: var(--primary); color: var(--primary);">Sau <i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </footer>
+
+    <!-- Interactive Logic -->
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const currIdxElem = document.getElementById('curr-idx');
+        const totalIdxElem = document.getElementById('total-idx');
+        const progressBar = document.getElementById('progress-bar');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+        let currentIndex = 0;
+        const totalSlides = slides.length;
+        totalIdxElem.textContent = totalSlides;
+
+        function updateSlide(index) {
+            slides.forEach((s, idx) => {
+                s.classList.toggle('active', idx === index);
+            });
+            currIdxElem.textContent = index + 1;
+            progressBar.style.width = `${((index + 1) / totalSlides) * 100}%`;
+        }
+
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlide(currentIndex);
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlide(currentIndex);
+            }
+        }
+
+        nextBtn.addEventListener('click', nextSlide);
+        prevBtn.addEventListener('click', prevSlide);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                prevSlide();
+            } else if (e.key.toLowerCase() === 'f') {
+                toggleFullScreen();
+            }
+        });
+
+        // Fullscreen toggle
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+        fullscreenBtn.addEventListener('click', toggleFullScreen);
+
+        // Touch swipe support for mobile/trackpad
+        let touchStartX = 0;
+        document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
+        document.addEventListener('touchend', (e) => {
+            let touchEndX = e.changedTouches[0].screenX;
+            if (touchStartX - touchEndX > 50) nextSlide();
+            if (touchEndX - touchStartX > 50) prevSlide();
+        });
+    </script>
+</body>
+</html>
