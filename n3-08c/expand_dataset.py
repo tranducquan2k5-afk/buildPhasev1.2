@@ -46,12 +46,12 @@ def expand_dataset(nusc, n_samples: int = 20, min_objects: int = 2, max_objects:
     if bank.exists():
         bank.load()
     else:
-        print("[Notice] TemplateBank chưa được build. Khởi tạo từ các sample có sẵn...")
+        print("[Notice] TemplateBank chua duoc build. Dang khoi tao...")
         bank.build(nusc, progress=False)
 
     samples = nusc.sample[:n_samples]
-    print(f"Bắt đầu mở rộng dữ liệu: {len(samples)} samples gốc...")
-    print(f"Cấu hình: Vật thể/scene: {min_objects}-{max_objects} | Thời tiết: {weather_type} ({weather_level})")
+    print(f"[Start] Expanding dataset: {len(samples)} samples...")
+    print(f"Config: Objects/scene: {min_objects}-{max_objects} | Weather: {weather_type} ({weather_level})")
     
     total_generated = 0
     t0 = time.perf_counter()
@@ -123,9 +123,9 @@ def expand_dataset(nusc, n_samples: int = 20, min_objects: int = 2, max_objects:
         total_generated += 1
 
     total_time = time.perf_counter() - t0
-    print(f"\n[Hoàn thành] Đã tạo thành công {total_generated} scene nhân tạo!")
-    print(f"Tổng thời gian: {total_time:.2f}s (~ {total_generated / (total_time / 3600):.1f} scenes/giờ)")
-    print(f"Dữ liệu được lưu tại: {output_dir}")
+    print(f"\n[Success] Generated {total_generated} synthetic scenes!")
+    print(f"Total time: {total_time:.2f}s (~ {total_generated / (total_time / 3600):.1f} scenes/hour)")
+    print(f"Dataset saved to: {output_dir}")
 
 
 if __name__ == "__main__":
