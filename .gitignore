@@ -1,4 +1,4 @@
-﻿# Dữ liệu nuScenes (~5.5 GB) — mỗi người tự tải, xem HUONG_DAN.md mục 2
+# Dữ liệu nuScenes (~5.5 GB) — mỗi người tự tải, xem HUONG_DAN.md mục 2
 datasets/
 # Virtualenv — mỗi người tự tạo
 nuscenes-env/
@@ -10,3 +10,6 @@ __pycache__/
 .pytest_cache/
 .vscode/
 .idea/
+# Webapp runtime temporary outputs
+webapp/temp_outputs/
+*/temp_outputs/

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaTeam - Synthetic LiDAR SaaS Platform (Dual-Mode 3D Engine)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            950: '#05070B',
+                            900: '#07090E',
+                            800: '#0B0F19',
+                            700: '#151D2F',
+                            600: '#1E293B',
+                            500: '#334155'
+                        },
+                        cyber: {
+                            cyan: '#06B6D4',
+                            blue: '#3B82F6',
+                            purple: '#8B5CF6',
+                            emerald: '#10B981',
+                            amber: '#F59E0B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-dark-900 text-slate-100">
+
+    <!-- TOP HEADER -->
+    <header class="h-16 border-b border-dark-600 bg-dark-800/90 backdrop-blur px-6 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyber-cyan to-cyber-blue flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-radar text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300 bg-clip-text text-transparent">SYNTHETIC LIDAR SAAS</span>
+                    <span class="px-2 py-0.5 text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-800/60 rounded-full">DUAL-MODE</span>
+                </div>
+                <p class="text-xs text-slate-400">NovaTeam (035) • Autonomous Driving 3D Augmentation Engine</p>
+            </div>
+        </div>
+
+        <!-- MAIN NAVIGATION TABS -->
+        <nav class="flex items-center space-x-2">
+            <button id="tab-generator" class="px-4 py-2 text-xs font-bold text-cyan-400 border-b-2 border-cyan-400 transition flex items-center">
+                <i class="fa-solid fa-cube mr-2"></i> 3D Sandbox & Generator
+            </button>
+            <button id="tab-kpi" class="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-200 transition flex items-center">
+                <i class="fa-solid fa-chart-line mr-2"></i> KPI & Benchmark Dashboard
+            </button>
+        </nav>
+
+        <!-- TOP ACTION BUTTONS -->
+        <div class="flex items-center space-x-2 text-xs">
+            <a href="/slides" target="_blank" class="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center shadow-lg shadow-purple-600/20">
+                <i class="fa-solid fa-person-chalkboard mr-1.5"></i> Slide Thuyết Trình
+            </a>
+            <button id="btn-open-vis-gallery" class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-slate-200 border border-dark-500 rounded-lg text-xs font-bold transition flex items-center">
+                <i class="fa-solid fa-images text-cyan-400 mr-1.5"></i> Ảnh 3D Vis
+            </button>
+            <div class="hidden xl:flex items-center px-3 py-1 bg-dark-700 rounded-full border border-dark-600">
+                <span class="text-slate-400">Templates:</span>
+                <span id="header-template-count" class="font-mono font-bold text-cyan-400 ml-1">4,111</span>
+            </div>
+            <div class="hidden xl:flex items-center px-3 py-1 bg-emerald-950/80 rounded-full border border-emerald-800/60 text-emerald-400 font-semibold">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span> Valid Rate 100%
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: 3D GENERATOR SANDBOX (SPLIT VIEW) -->
+        <!-- ========================================== -->
+        <div id="view-generator" class="flex-1 flex overflow-hidden w-full h-full">
+
+            <!-- LEFT CONTROL SIDEBAR -->
+            <aside class="w-[440px] shrink-0 border-r border-dark-600 bg-dark-800 flex flex-col h-full overflow-y-auto">
+                <div class="p-5 space-y-5">
+
+                    <!-- PRESETS SELECTOR: Quick load 100 generated scenes -->
+                    <div class="p-3.5 bg-dark-700/60 rounded-xl border border-amber-500/30 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-amber-300 flex items-center">
+                                <i class="fa-solid fa-box-open mr-1.5"></i> Nạp Scene Có Sẵn (100 Scenes)
+                            </span>
+                            <span class="text-[9px] bg-amber-950 text-amber-400 px-1.5 py-0.5 rounded border border-amber-800 font-mono">100 Scene</span>
+                        </div>
+                        <select id="select-preset-scene" class="w-full bg-dark-800 border border-dark-500 rounded-lg p-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500">
+                            <option value="">Đang tải danh sách 100 scene...</option>
+                        </select>
+                        <button id="btn-load-preset" type="button" class="w-full py-1.5 bg-dark-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-eye mr-1.5 text-cyan-400"></i> Xem 3D Scene Này Ngay
+                        </button>
+                    </div>
+
+                    <!-- DUAL-MODE SELECTOR -->
+                    <div>
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                            <i class="fa-solid fa-sliders text-cyan-400 mr-1.5"></i> Chế độ đầu vào (Dual-Mode)
+                        </label>
+                        <div class="grid grid-cols-2 gap-2 bg-dark-900 p-1 rounded-xl border border-dark-600">
+                            <button id="btn-select-mode1" class="py-2 px-3 text-xs font-bold rounded-lg bg-cyan-600 text-white shadow-lg transition flex items-center justify-center">
+                                <i class="fa-solid fa-map-location-dot mr-1.5"></i> Mode 1: nuScenes
+                            </button>
+                            <button id="btn-select-mode2" class="py-2 px-3 text-xs font-bold rounded-lg bg-dark-700 text-slate-300 hover:text-white transition flex items-center justify-center">
+                                <i class="fa-solid fa-upload mr-1.5"></i> Mode 2: Upload
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- MODE 1 SECTION: nuScenes Sandbox -->
+                    <div id="sec-mode1-nuscenes" class="space-y-3 p-3.5 bg-dark-700/50 rounded-xl border border-dark-600">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-200">Chọn Sample Token:</span>
+                            <span class="text-[10px] bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded border border-emerald-800">Vector Map Active</span>
+                        </div>
+                        <select id="select-sample-token" class="w-full bg-dark-800 border border-dark-500 rounded-lg p-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500">
+                            <option value="">Đang tải danh sách sample...</option>
+                        </select>
+                        <p class="text-[11px] text-slate-400">Vật thể sẽ tự động bám theo làn đường (`drivable_area`) và vỉa hè (`walkway`).</p>
+                    </div>
+
+                    <!-- MODE 2 SECTION: Custom Upload (Mapless Fallback) -->
+                    <div id="sec-mode2-upload" class="hidden space-y-3 p-3.5 bg-dark-700/50 rounded-xl border border-dark-600">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-200">Tải file LiDAR tùy ý:</span>
+                            <span class="text-[10px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded border border-cyan-800">Mapless Fallback</span>
+                        </div>
+                        <!-- Dropzone -->
+                        <div id="upload-dropzone" class="border-2 border-dashed border-dark-500 hover:border-cyan-500 rounded-xl p-4 text-center cursor-pointer bg-dark-800 relative group transition">
+                            <input type="file" id="upload-file-input" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" accept=".bin,.pcd,.ply,.las,.laz,.xyz,.csv,.txt,.npy">
+                            <div id="upload-prompt">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 group-hover:text-cyan-400 mb-1"></i>
+                                <p class="text-xs font-semibold text-slate-200">Kéo thả file .bin / .pcd vào đây</p>
+                                <p class="text-[10px] text-slate-400">hoặc bấm để duyệt file</p>
+                                <div class="flex flex-wrap gap-1 justify-center mt-2">
+                                    <span class="px-1 py-0.2 text-[9px] font-mono bg-dark-600 text-cyan-300 rounded">.bin</span>
+                                    <span class="px-1 py-0.2 text-[9px] font-mono bg-dark-600 text-cyan-300 rounded">.pcd</span>
+                                    <span class="px-1 py-0.2 text-[9px] font-mono bg-dark-600 text-cyan-300 rounded">.ply</span>
+                                    <span class="px-1 py-0.2 text-[9px] font-mono bg-dark-600 text-cyan-300 rounded">.las</span>
+                                </div>
+                            </div>
+                            <div id="upload-selected-info" class="hidden flex items-center justify-between bg-dark-700 p-2 rounded border border-cyan-500/40">
+                                <div class="truncate text-left">
+                                    <p id="upload-filename" class="text-xs font-bold text-cyan-400 truncate">cloud.bin</p>
+                                    <p id="upload-filesize" class="text-[10px] text-slate-400">0 KB</p>
+                                </div>
+                                <button id="upload-btn-remove" class="text-slate-400 hover:text-red-400 p-1"><i class="fa-solid fa-times"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TASK A: OBJECT INSERTION -->
+                    <div class="p-3.5 bg-dark-700/40 rounded-xl border border-dark-600 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="toggle-insertion" checked class="w-4 h-4 accent-cyan-500 rounded">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Task A: Chèn Vật Thể 3D</span>
+                            </label>
+                            <span class="text-[10px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded border border-cyan-800">±15cm Occlusion</span>
+                        </div>
+
+                        <!-- Number of objects slider -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-400">Số lượng vật thể:</span>
+                                <span id="num-objects-val" class="font-mono font-bold text-cyan-400">3 xe</span>
+                            </div>
+                            <input type="range" id="num-objects-slider" min="1" max="8" value="3" class="w-full h-1.5 bg-dark-500 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                        </div>
+
+                        <!-- Category Selector -->
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-semibold text-slate-400 block">Danh mục vật thể:</label>
+                            <div class="grid grid-cols-2 gap-1.5 text-xs">
+                                <label class="flex items-center space-x-2 bg-dark-800 p-2 rounded-lg border border-dark-500 cursor-pointer hover:border-cyan-500/50">
+                                    <input type="checkbox" name="cat" value="vehicle.car" checked class="accent-cyan-500 rounded">
+                                    <span>🚗 Ô tô con</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-dark-800 p-2 rounded-lg border border-dark-500 cursor-pointer hover:border-cyan-500/50">
+                                    <input type="checkbox" name="cat" value="vehicle.motorcycle" checked class="accent-cyan-500 rounded">
+                                    <span>🏍️ Xe máy</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-dark-800 p-2 rounded-lg border border-dark-500 cursor-pointer hover:border-cyan-500/50">
+                                    <input type="checkbox" name="cat" value="vehicle.truck" checked class="accent-cyan-500 rounded">
+                                    <span>🚚 Xe tải</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-dark-800 p-2 rounded-lg border border-dark-500 cursor-pointer hover:border-cyan-500/50">
+                                    <input type="checkbox" name="cat" value="vehicle.bus.bendy" checked class="accent-cyan-500 rounded">
+                                    <span>🚌 Xe buýt</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-dark-800 p-2 rounded-lg border border-dark-500 cursor-pointer hover:border-cyan-500/50">
+                                    <input type="checkbox" name="cat" value="human.pedestrian.adult" class="accent-cyan-500 rounded">
+                                    <span>🚶 Người đi bộ</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-dark-800 p-2 rounded-lg border border-dark-500 cursor-pointer hover:border-cyan-500/50">
+                                    <input type="checkbox" name="cat" value="movable_object.barrier" class="accent-cyan-500 rounded">
+                                    <span>🚧 Rào chắn</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TASK B: WEATHER SIMULATION -->
+                    <div class="p-3.5 bg-dark-700/40 rounded-xl border border-dark-600 space-y-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 block">Task B: Thời Tiết & Vũng Nước</span>
+
+                        <!-- Weather Modes -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" class="weather-tab-btn py-2 px-3 text-xs font-semibold rounded-lg border border-dark-500 bg-dark-800 text-slate-300 active" data-weather="none">
+                                <i class="fa-solid fa-sun text-amber-400 block mb-1 text-sm"></i> Quang
+                            </button>
+                            <button type="button" class="weather-tab-btn py-2 px-3 text-xs font-semibold rounded-lg border border-dark-500 bg-dark-800 text-slate-300" data-weather="rain">
+                                <i class="fa-solid fa-cloud-rain text-blue-400 block mb-1 text-sm"></i> Mưa
+                            </button>
+                            <button type="button" class="weather-tab-btn py-2 px-3 text-xs font-semibold rounded-lg border border-dark-500 bg-dark-800 text-slate-300" data-weather="fog">
+                                <i class="fa-solid fa-smog text-slate-400 block mb-1 text-sm"></i> Sương mù
+                            </button>
+                        </div>
+
+                        <!-- Level selector -->
+                        <div id="weather-level-container" class="hidden space-y-2">
+                            <div class="grid grid-cols-3 gap-1.5 text-xs">
+                                <button type="button" class="level-btn py-1.5 bg-dark-800 border border-dark-500 rounded text-slate-300" data-level="light">Nhẹ</button>
+                                <button type="button" class="level-btn py-1.5 bg-dark-800 border border-cyan-500 text-cyan-400 font-bold rounded" data-level="moderate">Vừa</button>
+                                <button type="button" class="level-btn py-1.5 bg-dark-800 border border-dark-500 rounded text-slate-300" data-level="heavy">Khốc liệt</button>
+                            </div>
+                        </div>
+
+                        <!-- Wet road checkbox -->
+                        <div class="pt-2 border-t border-dark-600">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="toggle-wet-road" class="w-4 h-4 accent-cyan-500 rounded">
+                                <div class="text-xs">
+                                    <span class="font-bold text-slate-200">🌊 Vũng nước mặt đường (Wet Road)</span>
+                                    <p class="text-[10px] text-slate-400">Phản xạ gương (Specular reflection -85% điểm mặt đường)</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- OUTPUT FORMAT -->
+                    <div>
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                            <i class="fa-solid fa-file-export text-cyan-400 mr-1.5"></i> Định dạng xuất file
+                        </label>
+                        <select id="export-format" class="w-full bg-dark-700 border border-dark-500 rounded-lg p-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500">
+                            <option value=".pcd" selected>.pcd (PCL / CVAT 3D Standard)</option>
+                            <option value=".bin">.bin (nuScenes / KITTI Float32 Format)</option>
+                            <option value=".ply">.ply (Stanford Polygon / MeshLab / CloudCompare)</option>
+                            <option value=".las">.las (ASPRS LiDAR Standard Format)</option>
+                            <option value=".npy">.npy (NumPy Matrix)</option>
+                        </select>
+                    </div>
+
+                    <!-- RUN BUTTON -->
+                    <button id="btn-run-augment" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-cyan-500/25 transition transform active:scale-95 flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-bolt text-amber-300"></i>
+                        <span>BẮT ĐẦU TĂNG CƯỜNG DỮ LIỆU</span>
+                    </button>
+
+                </div>
+            </aside>
+
+            <!-- RIGHT 3D VIEWPORT -->
+            <main class="flex-1 flex flex-col bg-dark-900 relative">
+
+                <!-- VIEWPORT TOOLBAR OVERLAY -->
+                <div class="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2 bg-dark-800/90 backdrop-blur px-3 py-2 rounded-xl border border-dark-600 shadow-xl">
+                    <!-- Color Mode -->
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[11px] font-bold text-slate-400 mr-1"><i class="fa-solid fa-palette text-cyan-400 mr-1"></i> Màu:</span>
+                        <button id="btn-color-z" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-600 text-white font-bold transition">Độ cao Z</button>
+                        <button id="btn-color-intensity" class="px-2.5 py-1 text-xs rounded-lg bg-dark-700 text-slate-300 hover:text-white transition">Cường độ (I)</button>
+                    </div>
+                    <div class="h-4 w-px bg-dark-600 mx-1"></div>
+                    <!-- Compare Before/After -->
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[11px] font-bold text-slate-400 mr-1"><i class="fa-solid fa-code-compare text-amber-400 mr-1"></i> Đối chiếu:</span>
+                        <button id="btn-disp-aug" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-600 text-white font-bold transition">Sau tăng cường</button>
+                        <button id="btn-disp-orig" class="px-2.5 py-1 text-xs rounded-lg bg-dark-700 text-slate-300 hover:text-white transition">Gốc</button>
+                        <button id="btn-disp-both" class="px-2.5 py-1 text-xs rounded-lg bg-dark-700 text-slate-300 hover:text-white transition">Cả hai</button>
+                    </div>
+                    <div class="h-4 w-px bg-dark-600 mx-1"></div>
+                    <!-- Camera Presets -->
+                    <div class="flex items-center space-x-1">
+                        <button id="btn-view-iso" class="px-2 py-1 text-xs bg-dark-700 hover:bg-dark-600 rounded text-slate-300 font-bold" title="3D Isometric">3D</button>
+                        <button id="btn-view-bev" class="px-2 py-1 text-xs bg-dark-700 hover:bg-dark-600 rounded text-slate-300 font-bold" title="Top-down BEV">BEV</button>
+                        <button id="btn-view-driver" class="px-2 py-1 text-xs bg-dark-700 hover:bg-dark-600 rounded text-slate-300 font-bold" title="Góc nhìn lái xe">Driver</button>
+                    </div>
+                    <!-- Point Size -->
+                    <div class="flex items-center space-x-1 ml-2">
+                        <i class="fa-solid fa-circle-dot text-[10px] text-slate-400"></i>
+                        <input type="range" id="point-size-slider" min="0.05" max="0.30" step="0.01" value="0.12" class="w-16 h-1 bg-dark-500 rounded accent-cyan-500">
+                    </div>
+                </div>
+
+                <!-- RESULTS STATS OVERLAY CARD -->
+                <div id="stats-card" class="absolute top-4 right-4 z-10 hidden bg-dark-800/95 backdrop-blur p-4 rounded-xl border border-dark-600 shadow-2xl space-y-2.5 min-w-[260px]">
+                    <div class="flex items-center justify-between border-b border-dark-600 pb-2">
+                        <span id="stat-mode-badge" class="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">Mode 1</span>
+                        <span id="stat-time" class="text-xs font-mono font-bold text-emerald-400">120ms</span>
+                    </div>
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Điểm gốc:</span>
+                            <span id="stat-initial-pts" class="font-mono text-slate-200">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Điểm sau augment:</span>
+                            <span id="stat-final-pts" class="font-mono font-bold text-cyan-400">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Chênh lệch:</span>
+                            <span id="stat-diff-pts" class="font-mono text-amber-400 font-semibold">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Xe mới chèn:</span>
+                            <span id="stat-inserted-cnt" class="font-mono font-bold text-amber-400">0 xe</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Thời tiết:</span>
+                            <span id="stat-weather-tag" class="font-mono text-blue-300">Quang</span>
+                        </div>
+                    </div>
+
+                    <!-- DOWNLOAD BUTTONS -->
+                    <div class="pt-2 border-t border-dark-600 space-y-1.5">
+                        <a id="btn-dl-cloud" href="#" class="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-download mr-1.5"></i> Tải Point Cloud (<span id="btn-dl-cloud-tag">.PCD</span>)
+                        </a>
+                        <div class="flex space-x-1.5">
+                            <a id="btn-dl-ann" href="#" class="flex-1 py-1.5 bg-dark-700 hover:bg-dark-600 text-slate-200 rounded text-[11px] font-medium transition text-center flex items-center justify-center">
+                                <i class="fa-solid fa-tags text-amber-400 mr-1"></i> Nhãn 3D Box
+                            </a>
+                            <a id="btn-dl-zip" href="#" class="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-bold transition text-center flex items-center justify-center">
+                                <i class="fa-solid fa-file-zipper mr-1"></i> Trọn gói ZIP
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D CANVAS CONTAINER -->
+                <div id="canvas-container" class="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing"></div>
+
+                <!-- LOADING SPINNER MODAL -->
+                <div id="loading-overlay" class="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-30 hidden flex flex-col items-center justify-center">
+                    <div class="p-8 bg-dark-800 rounded-2xl border border-cyan-500/40 shadow-2xl text-center max-w-sm w-full space-y-4">
+                        <div class="w-14 h-14 border-4 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin mx-auto"></div>
+                        <div>
+                            <h4 class="text-sm font-extrabold text-white">Đang thực thi Pipeline 3D...</h4>
+                            <p class="text-xs text-slate-400 mt-1">Khử che khuất Ray Casting & mô phỏng thời tiết...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW 2: KPI & BENCHMARK DASHBOARD (FULL TAB)  -->
+        <!-- ============================================== -->
+        <div id="view-kpi" class="hidden flex-1 overflow-y-auto p-8 space-y-8 bg-dark-900 w-full h-full">
+
+            <!-- KPI HEADER -->
+            <div class="flex items-center justify-between border-b border-dark-600 pb-5">
+                <div>
+                    <h2 class="text-xl font-extrabold text-white tracking-tight flex items-center">
+                        <i class="fa-solid fa-medal text-amber-400 mr-2.5 text-2xl"></i> BẢNG KẾT QUẢ ĐÁNH GIÁ THỰC NGHIỆM (KPI BENCHMARK)
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Dữ liệu nghiệm thu chính xác từ output/eval_report.json qua các bài test tự động</p>
+                </div>
+            </div>
+
+            <!-- 4 METRIC CARDS -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                <div class="p-5 bg-dark-800 rounded-xl border border-dark-600 shadow-xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase text-slate-400">Tỉ lệ nhãn hợp lệ</span>
+                        <i class="fa-solid fa-check-double text-emerald-400 text-lg"></i>
+                    </div>
+                    <div id="kpi-valid-rate" class="text-3xl font-black text-emerald-400 font-mono">100%</div>
+                    <p class="text-[11px] text-slate-400 mt-1">0% Bounding box rỗng hay lỗi toạ độ</p>
+                </div>
+                <div class="p-5 bg-dark-800 rounded-xl border border-dark-600 shadow-xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase text-slate-400">Tỉ lệ va chạm BEV</span>
+                        <i class="fa-solid fa-shield-halved text-cyan-400 text-lg"></i>
+                    </div>
+                    <div id="kpi-collision" class="text-3xl font-black text-cyan-400 font-mono">0.0%</div>
+                    <p class="text-[11px] text-slate-400 mt-1">Shapely Polygon IoU = 0.0 an toàn tuyệt đối</p>
+                </div>
+                <div class="p-5 bg-dark-800 rounded-xl border border-dark-600 shadow-xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase text-slate-400">Thông lượng xử lý</span>
+                        <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+                    </div>
+                    <div id="kpi-throughput" class="text-3xl font-black text-amber-400 font-mono">1,146</div>
+                    <p class="text-[11px] text-slate-400 mt-1">scenes/giờ (Vượt xa chuẩn công nghiệp)</p>
+                </div>
+                <div class="p-5 bg-dark-800 rounded-xl border border-dark-600 shadow-xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase text-slate-400">Tổng vật thể mẫu</span>
+                        <i class="fa-solid fa-boxes-stacked text-purple-400 text-lg"></i>
+                    </div>
+                    <div id="kpi-objects" class="text-3xl font-black text-purple-400 font-mono">4,111</div>
+                    <p class="text-[11px] text-slate-400 mt-1">14 danh mục xe cộ & người đi bộ</p>
+                </div>
+            </div>
+
+            <!-- WEATHER DEGRADATION TABLE -->
+            <div class="p-6 bg-dark-800 rounded-2xl border border-dark-600 space-y-4">
+                <h3 class="text-sm font-extrabold text-white flex items-center">
+                    <i class="fa-solid fa-cloud-showers-water text-cyan-400 mr-2"></i> BẢNG ĐO LƯỜNG SUY GIẢM QUANG HỌC VẬT LÝ THEO CÁC CẤP ĐỘ THỜI TIẾT
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-dark-500 text-slate-400 uppercase text-[10px] tracking-wider">
+                                <th class="py-3 px-4">Kịch bản thời tiết</th>
+                                <th class="py-3 px-4">Tỉ lệ bảo toàn số điểm (Survival Rate)</th>
+                                <th class="py-3 px-4">Cường độ phản xạ (Gốc &rarr; Sau suy giảm)</th>
+                                <th class="py-3 px-4">Mức độ suy hao cường độ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kpi-weather-tbody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- 3D VISUAL SNAPSHOTS GALLERY MODAL -->
+    <div id="vis-gallery-modal" class="fixed inset-0 bg-dark-950/85 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-6">
+        <div class="bg-dark-800 rounded-2xl border border-dark-600 max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-dark-600 flex items-center justify-between bg-dark-700/50">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-images text-cyan-400 text-lg"></i>
+                    <h3 class="font-extrabold text-sm text-white">BỘ ẢNH MINH CHỨNG TRỰC QUAN HÓA 3D (OUTPUT/VIS)</h3>
+                </div>
+                <button id="btn-close-vis-modal" class="text-slate-400 hover:text-white p-1 text-base"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div id="vis-gallery-grid" class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="/static/js/viewer3d.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

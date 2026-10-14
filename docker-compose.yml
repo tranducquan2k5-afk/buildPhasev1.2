@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  synthetic-lidar-saas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: novateam_lidar_saas
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    environment:
+      - PORT=8050
+      - NUSCENES_DATAROOT=/app/datasets/nuscenes
+    volumes:
+      # Host output directory mounted to persist/read templates and evaluation reports
+      - ./output:/app/output
+      # Host nuScenes dataset directory mounted read-only for Mode 1 Sandbox
+      - ./datasets:/app/datasets:ro
+      # Host temporary outputs directory
+      - ./webapp/temp_outputs:/app/webapp/temp_outputs

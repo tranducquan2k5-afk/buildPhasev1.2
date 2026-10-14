@@ -1,0 +1,36 @@
+# Virtual Environments
+nuscenes-env/
+.venv/
+env/
+venv/
+
+# Heavy Data Directories (Strictly mounted via volumes)
+datasets/
+output/templates/
+output/vietnam_monsoon_dataset/
+output/fog_dense_dataset/
+output/augmented/
+output/weather/
+output/vis/
+
+# Runtime Temporary Outputs
+webapp/temp_outputs/
+web_app/temp_outputs/
+*.bin
+*.pcd
+*.las
+*.laz
+*.npz
+
+# Python Cache & IDE
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.vscode/
+.idea/
+.git/
+.gitignore
+
+# Scratch Files
+scratch/

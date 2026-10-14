@@ -86,10 +86,15 @@ def create_annotation(object_template: dict, position: Tuple[float, float, float
     x, y, yaw = position
     size: Sequence[float] = object_template["size"]
     num_lidar_pts = object_template.get("final_num_pts", int(len(object_template["points"])))
+    w, l, h = float(size[0]), float(size[1]), float(size[2])
     return {
         "token": uuid.uuid4().hex,
-        "translation": [float(x), float(y), float(ground_z + size[2] / 2)],
-        "size": [float(v) for v in size],
+        "translation": [float(x), float(y), float(ground_z + h / 2)],
+        "size": [w, l, h],
+        "width": w,
+        "length": l,
+        "height": h,
+        "yaw": float(yaw),
         "rotation": yaw_to_quaternion(yaw),
         "category": object_template["category"],
         "num_lidar_pts": int(num_lidar_pts),
