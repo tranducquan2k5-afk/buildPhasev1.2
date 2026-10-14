@@ -28,29 +28,48 @@ from task_a.merge import create_annotation, insert_object  # noqa: E402
 from task_a.placement import sample_valid_position  # noqa: E402
 from utils.nuscenes_loader import (get_annotations, get_calibration, get_ego_pose,  # noqa: E402
                                    get_lidar_token, get_pointcloud, load_nuscenes, save_bin)
-from utils.transforms import box_sensor_to_global  # noqa: E402
+from utils.transforms import box_sensor_to_global, points_in_cuboid  # noqa: E402
 
 
 def collect_templates(nusc, source_sample: Optional[str], source_anns: Optional[List[str]],
                       num_objects: int, rng: Optional[np.random.Generator] = None) -> List[dict]:
-    """Template từ annotation chỉ định, hoặc random num_objects từ source_sample với mọi category."""
+    """Template từ annotation chỉ định, hoặc lấy từ Template Bank chất lượng cao."""
+    rng = rng or np.random.default_rng(config.SEED)
     if source_anns:
         return [extract_object_template(nusc, nusc.get("sample_annotation", a)["sample_token"], a)
                 for a in source_anns]
+
+    # Ưu tiên lấy từ Template Bank chất lượng cao (Large >= 400pts, Car >= 180pts)
+    bank_path = Path(config.OUTPUT_DIR) / "templates" / "bank.json"
+    if bank_path.exists():
+        try:
+            from expand_dataset import load_filtered_template_bank, load_template_points
+            filtered, templates_dir = load_filtered_template_bank()
+            if filtered:
+                indices = rng.choice(len(filtered), size=min(num_objects * 3, len(filtered)), replace=False)
+                res = []
+                for idx in indices:
+                    m = filtered[idx]
+                    tpl = load_template_points(m, templates_dir)
+                    if tpl and len(tpl.get("points", [])) >= 10:
+                        res.append(tpl)
+                    if len(res) >= num_objects:
+                        break
+                if res:
+                    return res
+        except Exception:
+            pass
+
     templates = extract_all_templates(nusc, source_sample, categories=config.TEMPLATE_CATEGORIES)
-    
     if not templates:
         return []
-        
-    rng = rng or np.random.default_rng(config.SEED)
-    # Lựa chọn ngẫu nhiên để "chèn mọi thứ" thay vì chỉ chọn vật thể to nhất/nhiều điểm nhất
     rng.shuffle(templates)
     return templates[:num_objects]
 
 
 def run_insertion(nusc, target_token: str, templates: List[dict], n_attempts: int = 100,
                   rng: Optional[np.random.Generator] = None) -> dict:
-    """Chèn lần lượt các template vào target sample. Trả về dict points + annotations + thống kê."""
+    """Chèn lần lượt các template vào target sample với Mutual Separation và Road Heading."""
     rng = rng or np.random.default_rng(config.SEED)
     t0 = time.perf_counter()
 
@@ -68,13 +87,25 @@ def run_insertion(nusc, target_token: str, templates: List[dict], n_attempts: in
         
         # Khớp khoảng cách: chèn vật thể ở khoảng cách tương đương với lúc trích xuất (± 5m)
         orig_dist = tpl.get("distance", -1)
-        d_range = (orig_dist - 5.0, orig_dist + 5.0) if orig_dist > 0 else None
+        d_range = (max(8.0, orig_dist - 5.0), max(13.0, orig_dist + 5.0)) if orig_dist > 0 else (8.0, 45.0)
             
-        pos = sample_valid_position(areas[layers], existing + new_anns, tpl["size"], n_attempts, rng, distance_range=d_range)
+        pos = sample_valid_position(
+            areas[layers],
+            existing + new_anns,
+            tpl["size"],
+            n_attempts,
+            rng,
+            distance_range=d_range,
+            points=points,
+            inserted_boxes=new_anns
+        )
         if pos is None:
             continue
         points = insert_object(points, tpl, pos, ground)
-        new_anns.append(create_annotation(tpl, pos, project_z_to_ground(pos[0], pos[1], ground)))
+        ann = create_annotation(tpl, pos, project_z_to_ground(pos[0], pos[1], ground))
+        inside = points_in_cuboid(points, ann["translation"], ann["size"], ann["rotation"]).sum()
+        ann["num_lidar_pts"] = int(inside)
+        new_anns.append(ann)
     drivable = areas.get(config.DEFAULT_LAYERS) or get_map_area(nusc, nusc_map, target_token)
 
     sd_token = get_lidar_token(nusc, target_token)

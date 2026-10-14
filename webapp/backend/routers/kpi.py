@@ -35,6 +35,8 @@ def get_kpi_report():
                 "intensity_aug_mean": v.get("intensity_stats", {}).get("augmented", {}).get("mean", 0.0),
             }
 
+    ai_benchmark = data.get("ai_benchmark", {})
+
     return {
         "status": "success",
         "highlights": {
@@ -45,5 +47,6 @@ def get_kpi_report():
         },
         "insertion": insertion_info,
         "weather_eval": weather_stats,
+        "ai_benchmark": ai_benchmark,
         "raw_report": data
     }

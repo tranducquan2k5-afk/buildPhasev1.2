@@ -1,15 +1,37 @@
-# Dữ liệu nuScenes (~5.5 GB) — mỗi người tự tải, xem HUONG_DAN.md mục 2
+# Dữ liệu nuScenes (~5.5 GB) — người dùng tự tải theo hướng dẫn
 datasets/
-# Virtualenv — mỗi người tự tạo
+
+# Virtual Environments
 nuscenes-env/
 .venv/
-# Kết quả sinh ra khi chạy (kết quả mẫu nằm trong docs/ket_qua_mau/)
-output/
+env/
+venv/
+
+# Heavy Generated Datasets & Templates (chỉ lưu code, scripts, output/eval_report.json, output/vis/)
+output/templates/
+output/vietnam_monsoon_dataset/
+output/fog_dense_dataset/
+output/augmented/
+output/weather/
+output/temp_outputs/
+output/*.bin
+output/*.pcd
+output/*.las
+output/*.laz
+output/*.npy
+
+# Webapp Runtime Temporary Outputs
+webapp/temp_outputs/
+*/temp_outputs/
+
+# Python Cache & IDE Files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
 .vscode/
 .idea/
-# Webapp runtime temporary outputs
-webapp/temp_outputs/
-*/temp_outputs/
+
+# Scratch & Temporary Logs
+scratch/
+*.log

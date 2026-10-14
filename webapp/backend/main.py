@@ -16,7 +16,7 @@ for p in (PROJECT_ROOT, N3_08C_DIR, BACKEND_DIR):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-from routers import augment, kpi, presets, templates
+from routers import augment, cameras, kpi, presets, templates
 
 app = FastAPI(
     title="NovaTeam Synthetic LiDAR SaaS API",
@@ -49,6 +49,7 @@ app.include_router(templates.router)
 app.include_router(kpi.router)
 app.include_router(augment.router)
 app.include_router(presets.router)
+app.include_router(cameras.router)
 
 
 @app.get("/")

@@ -13,10 +13,14 @@ let currentMode = "mode1"; // 'mode1' (nuScenes) or 'mode2' (Upload)
 let currentWeather = "none";
 let currentWeatherLevel = "moderate";
 let selectedUploadFile = null;
+let lastAugmentResult = null;
+let lastPresetInfo = null;
+let cachedSurroundData = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initialize 3D WebGL Viewer
     viewer = new PointCloudViewer3D('canvas-container');
+    window.viewer3d = viewer;
 
     // 2. Setup Navigation Tabs (Generator vs. KPI)
     setupMainTabs();
@@ -319,8 +323,16 @@ async function runAugmentation() {
 
         const res = await response.json();
         if (res.status === 'success') {
+            lastAugmentResult = res;
+            lastPresetInfo = null;
+
             // Update 3D Viewer
             viewer.setData(res.preview);
+
+            // Pre-fetch 6-camera surround view
+            if (currentMode === 'mode1') {
+                loadSurroundCameras(false);
+            }
 
             // Update Metrics Card
             const stats = res.stats;
@@ -381,6 +393,51 @@ async function loadKpiDashboard() {
                 `;
                 tbody.appendChild(tr);
             }
+
+            // Fill Pillar 3 AI weather comparison table
+            if (data.ai_benchmark && data.ai_benchmark.weather_comparison) {
+                const aiWeatherTbody = document.getElementById('kpi-ai-weather-tbody');
+                if (aiWeatherTbody) {
+                    aiWeatherTbody.innerHTML = '';
+                    data.ai_benchmark.weather_comparison.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'border-b border-dark-600 hover:bg-dark-700/50 transition';
+                        tr.innerHTML = `
+                            <td class="py-2.5 px-4 font-semibold text-slate-200">${row.condition}</td>
+                            <td class="py-2.5 px-4 font-mono text-slate-400">${row.baseline_map.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-amber-300">${row.ours_map.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">+${row.gain_map.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono text-slate-400">${row.baseline_nds.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-cyan-300">${row.ours_nds.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">+${row.gain_nds.toFixed(1)}%</td>
+                        `;
+                        aiWeatherTbody.appendChild(tr);
+                    });
+                }
+            }
+
+            // Fill Pillar 3 AI per-class breakdown table
+            if (data.ai_benchmark && data.ai_benchmark.class_comparison) {
+                const aiClassTbody = document.getElementById('kpi-ai-class-tbody');
+                if (aiClassTbody) {
+                    aiClassTbody.innerHTML = '';
+                    data.ai_benchmark.class_comparison.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'border-b border-dark-600 hover:bg-dark-700/50 transition';
+                        tr.innerHTML = `
+                            <td class="py-2.5 px-4 font-bold text-white flex items-center">
+                                <span class="w-2 h-2 rounded-full bg-cyan-400 mr-2"></span> ${row.name}
+                            </td>
+                            <td class="py-2.5 px-4 font-mono text-slate-400">${row.baseline_ap.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-orange-400">${row.ours_ap.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">+${row.gain_ap.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 font-mono font-bold text-cyan-400">${row.false_positive_drop.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 text-slate-400 text-[11px]">${row.note}</td>
+                        `;
+                        aiClassTbody.appendChild(tr);
+                    });
+                }
+            }
         }
     } catch (e) {
         console.error('Failed to load KPI data:', e);
@@ -431,7 +488,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch(`/api/presets/load?dataset=${encodeURIComponent(dataset)}&filename=${encodeURIComponent(filename)}`);
                 const data = await res.json();
                 if (data.status === 'success') {
+                    lastPresetInfo = { dataset, filename };
+                    lastAugmentResult = data;
                     viewer.setData(data.preview);
+                    loadSurroundCameras(false);
 
                     // Update stats
                     const s = data.stats;
@@ -498,5 +558,281 @@ document.addEventListener('DOMContentLoaded', () => {
             visModal.classList.add('hidden');
         });
     }
+
+    // 6-Camera Surround View (2D-3D Fusion) Modal Listeners
+    const btnToggleSurround = document.getElementById('btn-toggle-surround-cam');
+    const btnCloseSurround = document.getElementById('btn-close-surround-modal');
+    const btnRefreshSurround = document.getElementById('btn-refresh-surround-cam');
+    const surroundModal = document.getElementById('surround-cam-modal');
+    const btnCloseLightbox = document.getElementById('btn-close-lightbox');
+    const cameraLightboxModal = document.getElementById('camera-lightbox-modal');
+
+    if (btnToggleSurround) {
+        btnToggleSurround.addEventListener('click', (e) => {
+            e.stopPropagation();
+            loadSurroundCameras(true);
+        });
+    }
+
+    if (btnCloseSurround) {
+        btnCloseSurround.addEventListener('click', (e) => {
+            closeSurroundModal(e);
+        });
+    }
+
+    if (surroundModal) {
+        surroundModal.addEventListener('click', (e) => {
+            // Click outside #surround-cam-card closes surround modal
+            if (e.target === surroundModal) {
+                closeSurroundModal(e);
+            }
+        });
+    }
+
+    if (btnRefreshSurround) {
+        btnRefreshSurround.addEventListener('click', (e) => {
+            e.stopPropagation();
+            loadSurroundCameras(true);
+        });
+    }
+
+    if (btnCloseLightbox) {
+        btnCloseLightbox.addEventListener('click', (e) => {
+            closeLightbox(e);
+        });
+    }
+
+    if (cameraLightboxModal) {
+        cameraLightboxModal.addEventListener('click', (e) => {
+            // Click on dark backdrop outside #lightbox-card closes lightbox
+            if (e.target === cameraLightboxModal) {
+                closeLightbox(e);
+            }
+        });
+    }
+
+    // Close modals on Escape key - strictly prioritized
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const lightbox = document.getElementById('camera-lightbox-modal');
+            // 1. If Lightbox is open: ONLY close lightbox, return to 6-camera surround modal!
+            if (lightbox && !lightbox.classList.contains('hidden') && lightbox.style.display !== 'none') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeLightbox(e);
+                return;
+            }
+
+            // 2. Otherwise, close surround modal if open
+            if (surroundModal && !surroundModal.classList.contains('hidden')) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSurroundModal(e);
+                return;
+            }
+
+            // 3. Otherwise, close vis modal if open
+            if (visModal && !visModal.classList.contains('hidden')) {
+                e.preventDefault();
+                e.stopPropagation();
+                visModal.classList.add('hidden');
+                return;
+            }
+        }
+    });
 });
+
+// ==========================================
+// 6-CAMERA SURROUND VIEW (2D-3D FUSION) CONTROLLER
+// ==========================================
+async function loadSurroundCameras(showModal = false) {
+    const badge = document.getElementById('badge-cam-count');
+    const modal = document.getElementById('surround-cam-modal');
+    const grid = document.getElementById('surround-cameras-grid');
+    const statusPill = document.getElementById('surround-cam-status-pill');
+
+    if (showModal && modal) {
+        modal.classList.remove('hidden');
+    }
+
+    if (showModal && grid) {
+        grid.innerHTML = `
+            <div class="col-span-1 md:col-span-3 flex flex-col items-center justify-center py-20 space-y-3">
+                <div class="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs text-orange-400 font-bold uppercase tracking-wider">Đang tính toán chiếu ma trận 3D sang 2D trên 6 Camera...</p>
+                <p class="text-[11px] text-slate-400 font-mono">Transforming LIDAR_TOP frame &rarr; Camera optical coordinates & applying weather</p>
+            </div>
+        `;
+    }
+
+    try {
+        let url = '/api/cameras/surround';
+        let options = { method: 'GET' };
+
+        if (lastPresetInfo) {
+            url += `?dataset=${encodeURIComponent(lastPresetInfo.dataset)}&filename=${encodeURIComponent(lastPresetInfo.filename)}`;
+        } else if (lastAugmentResult && lastAugmentResult.preview && lastAugmentResult.preview.boxes) {
+            // Mode 1 on-demand projection
+            url = '/api/cameras/project';
+            const sampleToken = lastAugmentResult.sample_token || (document.getElementById('select-sample-token') ? document.getElementById('select-sample-token').value : '');
+            options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sample_token: sampleToken,
+                    boxes: lastAugmentResult.preview.boxes,
+                    weather_type: currentWeather,
+                    weather_level: currentWeatherLevel
+                })
+            };
+        } else {
+            // Default sample
+            const selTok = document.getElementById('select-sample-token');
+            const tok = selTok && selTok.value ? selTok.value : '';
+            if (tok) url += `?sample_token=${tok}`;
+        }
+
+        const res = await fetch(url, options);
+        const data = await res.json();
+
+        if (data.status === 'success' && data.cameras) {
+            cachedSurroundData = data;
+
+            // Update badge count
+            if (badge) {
+                badge.textContent = `${data.cameras_with_objects}/${data.total_cameras}`;
+                badge.classList.remove('hidden');
+                if (data.cameras_with_objects > 0) {
+                    badge.className = 'ml-1.5 px-1.5 py-0.2 bg-white text-dark-950 font-black rounded-full text-[10px] animate-pulse';
+                } else {
+                    badge.className = 'ml-1.5 px-1.5 py-0.2 bg-dark-600 text-slate-300 font-bold rounded-full text-[10px]';
+                }
+            }
+
+            if (statusPill) {
+                statusPill.textContent = `${data.cameras_with_objects}/6 Camera phát hiện vật thể chèn`;
+                statusPill.className = data.cameras_with_objects > 0
+                    ? 'px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-orange-950 text-orange-400 border border-orange-800'
+                    : 'px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-dark-700 text-slate-400 border border-dark-600';
+            }
+
+            if (showModal || (modal && !modal.classList.contains('hidden'))) {
+                renderSurroundGrid(data.cameras);
+            }
+        }
+    } catch (err) {
+        console.error('Error loading surround cameras:', err);
+        if (showModal && grid) {
+            grid.innerHTML = `<div class="col-span-3 text-center py-10 text-red-400 text-xs font-bold">Lỗi tải ảnh 6 camera: ${err.message}</div>`;
+        }
+    }
+}
+
+function renderSurroundGrid(cameras) {
+    const grid = document.getElementById('surround-cameras-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    cameras.forEach(cam => {
+        const card = document.createElement('div');
+        const hasObj = cam.has_objects;
+
+        card.className = `bg-dark-800 rounded-xl overflow-hidden border transition-all duration-300 flex flex-col shadow-lg group ${
+            hasObj
+                ? 'border-orange-500/90 shadow-orange-500/20 ring-1 ring-orange-500/40'
+                : 'border-dark-600 opacity-85 hover:opacity-100 hover:border-dark-500'
+        }`;
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'px-3 py-2 bg-dark-850 border-b border-dark-600 flex items-center justify-between text-xs';
+        header.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full ${hasObj ? 'bg-orange-400 animate-ping' : 'bg-slate-500'}"></span>
+                <span class="font-extrabold text-white font-mono text-[11px]">${cam.channel}</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+                <span class="text-[10px] text-slate-400">${cam.name.split('(')[0].trim()}</span>
+                ${hasObj ? `<span class="px-1.5 py-0.5 text-[9px] font-bold bg-orange-900/80 text-orange-300 rounded border border-orange-700">${cam.num_objects} Xe</span>` : ''}
+            </div>
+        `;
+
+        // Image body
+        const imgContainer = document.createElement('div');
+        imgContainer.className = 'relative overflow-hidden cursor-pointer group-hover:brightness-105 transition';
+        imgContainer.innerHTML = `
+            <img src="${cam.image_base64}" alt="${cam.channel}" class="w-full h-44 object-cover transition duration-300 group-hover:scale-102">
+            <div class="absolute inset-0 bg-dark-950/20 group-hover:bg-transparent transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <span class="px-3 py-1 bg-dark-900/90 text-cyan-400 rounded-lg text-xs font-bold shadow-lg border border-cyan-500/40">
+                    <i class="fa-solid fa-expand mr-1"></i> Phóng to ảnh
+                </span>
+            </div>
+        `;
+
+        // Click to open Lightbox
+        imgContainer.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openLightbox(cam.image_base64, `[${cam.channel}] ${cam.name} • ${hasObj ? cam.num_objects + ' vật thể chèn' : 'Không có vật thể'}`);
+        });
+
+        // Footer listing detected objects
+        const footer = document.createElement('div');
+        footer.className = 'px-3 py-2 bg-dark-850/80 border-t border-dark-600 flex flex-wrap gap-1.5 min-h-[38px] items-center text-[10px]';
+        if (hasObj && cam.detected_objects && cam.detected_objects.length > 0) {
+            cam.detected_objects.forEach(obj => {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-0.5 bg-orange-950/90 text-orange-300 border border-orange-800/80 rounded font-mono font-semibold flex items-center';
+                badge.innerHTML = `<i class="fa-solid fa-car-side mr-1 text-orange-400"></i> ${obj.category.split('.').pop().toUpperCase()} • ${obj.distance_m}m`;
+                footer.appendChild(badge);
+            });
+        } else {
+            footer.innerHTML = '<span class="text-slate-500 italic">Góc nhìn thông thoáng (Không có vật thể mới chèn)</span>';
+        }
+
+        card.appendChild(header);
+        card.appendChild(imgContainer);
+        card.appendChild(footer);
+        grid.appendChild(card);
+    });
+}
+
+function openLightbox(src, title) {
+    const modal = document.getElementById('camera-lightbox-modal');
+    const img = document.getElementById('lightbox-img');
+    const titleEl = document.getElementById('lightbox-title');
+    if (!modal || !img) return;
+
+    img.src = src;
+    if (titleEl) {
+        titleEl.innerHTML = `<i class="fa-solid fa-camera mr-2 text-orange-400"></i><span>${title}</span>`;
+    }
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+function closeLightbox(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const modal = document.getElementById('camera-lightbox-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+}
+
+function closeSurroundModal(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    closeLightbox();
+    const surroundModal = document.getElementById('surround-cam-modal');
+    if (surroundModal) {
+        surroundModal.classList.add('hidden');
+    }
+    // Trả lại màn hình 3D Viewer + Sidebar bên trái nguyên vẹn 100%, đồng thời gọi viewer3d.onWindowResize()
+    if (window.viewer3d && typeof window.viewer3d.onWindowResize === 'function') {
+        window.viewer3d.onWindowResize();
+    } else if (viewer && typeof viewer.onWindowResize === 'function') {
+        viewer.onWindowResize();
+    }
+    window.dispatchEvent(new Event('resize'));
+}
+
 

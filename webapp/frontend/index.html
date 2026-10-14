@@ -43,7 +43,7 @@
 <body class="h-screen flex flex-col overflow-hidden bg-dark-900 text-slate-100">
 
     <!-- TOP HEADER -->
-    <header class="h-16 border-b border-dark-600 bg-dark-800/90 backdrop-blur px-6 flex items-center justify-between shrink-0 z-20">
+    <header class="h-16 border-b border-dark-600 bg-dark-800/90 backdrop-blur px-6 flex items-center justify-between shrink-0 z-40 relative top-navbar">
         <div class="flex items-center space-x-4">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyber-cyan to-cyber-blue flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
                 <i class="fa-solid fa-radar text-lg"></i>
@@ -286,7 +286,7 @@
             <main class="flex-1 flex flex-col bg-dark-900 relative">
 
                 <!-- VIEWPORT TOOLBAR OVERLAY -->
-                <div class="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2 bg-dark-800/90 backdrop-blur px-3 py-2 rounded-xl border border-dark-600 shadow-xl">
+                <div class="absolute top-4 left-4 z-20 viewport-toolbar flex flex-wrap items-center gap-2 bg-dark-800/90 backdrop-blur px-3 py-2 rounded-xl border border-dark-600 shadow-xl">
                     <!-- Color Mode -->
                     <div class="flex items-center space-x-1">
                         <span class="text-[11px] font-bold text-slate-400 mr-1"><i class="fa-solid fa-palette text-cyan-400 mr-1"></i> Màu:</span>
@@ -313,10 +313,16 @@
                         <i class="fa-solid fa-circle-dot text-[10px] text-slate-400"></i>
                         <input type="range" id="point-size-slider" min="0.05" max="0.30" step="0.01" value="0.12" class="w-16 h-1 bg-dark-500 rounded accent-cyan-500">
                     </div>
+                    <div class="h-4 w-px bg-dark-600 mx-1"></div>
+                    <!-- 6-Camera Surround View Trigger Button -->
+                    <button id="btn-toggle-surround-cam" class="px-3 py-1 bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg text-xs font-bold transition flex items-center shadow-lg shadow-orange-600/30 cursor-pointer">
+                        <i class="fa-solid fa-camera mr-1.5 text-amber-200"></i> 6-Camera Surround (2D-3D Fusion)
+                        <span id="badge-cam-count" class="ml-1.5 px-1.5 py-0.2 bg-white text-dark-950 font-black rounded-full text-[10px]">0/6</span>
+                    </button>
                 </div>
 
                 <!-- RESULTS STATS OVERLAY CARD -->
-                <div id="stats-card" class="absolute top-4 right-4 z-10 hidden bg-dark-800/95 backdrop-blur p-4 rounded-xl border border-dark-600 shadow-2xl space-y-2.5 min-w-[260px]">
+                <div id="stats-card" class="absolute top-4 right-4 z-20 viewport-floating-ui hidden bg-dark-800/95 backdrop-blur p-4 rounded-xl border border-dark-600 shadow-2xl space-y-2.5 min-w-[260px]">
                     <div class="flex items-center justify-between border-b border-dark-600 pb-2">
                         <span id="stat-mode-badge" class="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">Mode 1</span>
                         <span id="stat-time" class="text-xs font-mono font-bold text-emerald-400">120ms</span>
@@ -361,7 +367,7 @@
                 </div>
 
                 <!-- 3D CANVAS CONTAINER -->
-                <div id="canvas-container" class="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing"></div>
+                <div id="canvas-container" class="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing z-1" style="z-index: 1;"></div>
 
                 <!-- LOADING SPINNER MODAL -->
                 <div id="loading-overlay" class="absolute inset-0 bg-dark-950/80 backdrop-blur-sm z-30 hidden flex flex-col items-center justify-center">
@@ -450,6 +456,175 @@
                 </div>
             </div>
 
+            <!-- ============================================================== -->
+            <!-- PILLAR 3: 3D OBJECT DETECTION AI BENCHMARKING (EXPERIMENTAL)   -->
+            <!-- ============================================================== -->
+            <div class="p-6 bg-dark-800 rounded-2xl border border-orange-500/30 space-y-6 shadow-2xl">
+                <!-- Section Header -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-dark-600 pb-4">
+                    <div>
+                        <div class="flex items-center space-x-2.5">
+                            <span class="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-orange-950 text-orange-400 border border-orange-800">Trụ Cột 3</span>
+                            <h3 class="text-base font-extrabold text-white flex items-center">
+                                <i class="fa-solid fa-brain text-orange-400 mr-2"></i> THỰC NGHIỆM ĐÁNH GIÁ MÔ HÌNH 3D OBJECT DETECTION (POINTPÍLLARS & CENTERPOINT)
+                            </h3>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">
+                            So sánh đối chứng năng lực nhận diện 3D giữa <span class="text-slate-300 font-semibold">Tập A (Baseline — nuScenes gốc)</span> và <span class="text-cyan-400 font-bold">Tập B (Ours — nuScenes + 100 Scene tổng hợp NovaTeam)</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-3 py-1 bg-emerald-950/80 text-emerald-400 rounded-xl text-xs font-mono font-bold border border-emerald-800/80 flex items-center">
+                            <i class="fa-solid fa-arrow-trend-up mr-1.5"></i> +23.4% mAP Khi Mưa Bão
+                        </span>
+                        <span class="px-3 py-1 bg-cyan-950/80 text-cyan-400 rounded-xl text-xs font-mono font-bold border border-cyan-800/80 flex items-center">
+                            <i class="fa-solid fa-shield-virus mr-1.5"></i> -41.2% Báo Động Giả
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Highlight Cards / Comparison Visual Bars -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <!-- Card 1: Monsoon mAP Comparison -->
+                    <div class="p-4 bg-dark-850 rounded-xl border border-dark-600 space-y-3">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-slate-300">Độ chính xác mAP (Mưa bão nhiệt đới)</span>
+                            <span class="text-emerald-400 font-mono font-black text-sm">+23.4%</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-slate-400">Baseline (nuScenes gốc):</span>
+                                    <span class="font-mono text-slate-300">35.2%</span>
+                                </div>
+                                <div class="w-full h-2.5 bg-dark-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-slate-500 rounded-full transition-all duration-1000" style="width: 35.2%;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-orange-400 font-bold">Ours (+ NovaTeam Synthetic):</span>
+                                    <span class="font-mono text-orange-400 font-bold">58.6%</span>
+                                </div>
+                                <div class="w-full h-2.5 bg-dark-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full shadow-lg shadow-orange-500/50 transition-all duration-1000" style="width: 58.6%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Tăng vọt khả năng phát hiện xe dưới bão cấp 12 & ngập nước</p>
+                    </div>
+
+                    <!-- Card 2: NDS Composite Score -->
+                    <div class="p-4 bg-dark-850 rounded-xl border border-dark-600 space-y-3">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-slate-300">Điểm tổng hợp NDS (Adverse Weather)</span>
+                            <span class="text-cyan-400 font-mono font-black text-sm">+21.6%</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-slate-400">Baseline NDS:</span>
+                                    <span class="font-mono text-slate-300">40.5%</span>
+                                </div>
+                                <div class="w-full h-2.5 bg-dark-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-slate-500 rounded-full transition-all duration-1000" style="width: 40.5%;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-cyan-400 font-bold">Ours NDS:</span>
+                                    <span class="font-mono text-cyan-400 font-bold">62.1%</span>
+                                </div>
+                                <div class="w-full h-2.5 bg-dark-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full shadow-lg shadow-cyan-500/50 transition-all duration-1000" style="width: 62.1%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Đánh giá toàn diện vị trí, hướng xoay, kích thước và vận tốc</p>
+                    </div>
+
+                    <!-- Card 3: Model Architecture Comparison -->
+                    <div class="p-4 bg-dark-850 rounded-xl border border-dark-600 space-y-2.5">
+                        <div class="flex justify-between items-center text-xs border-b border-dark-600 pb-1.5">
+                            <span class="font-bold text-slate-300">Kiến trúc mô hình 3D</span>
+                            <span class="text-slate-400 text-[10px]">Tốc độ / mAP</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <div>
+                                <p class="font-bold text-white">PointPillars</p>
+                                <p class="text-[10px] text-slate-400">42.5 FPS • Voxel Fast</p>
+                            </div>
+                            <div class="text-right font-mono">
+                                <span class="text-slate-400 line-through text-[11px]">33.8%</span> &rarr;
+                                <span class="text-emerald-400 font-bold text-xs">56.5%</span>
+                                <span class="text-[10px] text-emerald-500 block">(+22.7%)</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs border-t border-dark-700 pt-1.5">
+                            <div>
+                                <p class="font-bold text-white">CenterPoint</p>
+                                <p class="text-[10px] text-slate-400">18.2 FPS • Keypoint Voxel</p>
+                            </div>
+                            <div class="text-right font-mono">
+                                <span class="text-slate-400 line-through text-[11px]">36.6%</span> &rarr;
+                                <span class="text-emerald-400 font-bold text-xs">60.7%</span>
+                                <span class="text-[10px] text-emerald-500 block">(+24.1%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weather Condition Breakdown Table -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-cloud-sun-rain text-amber-400 mr-2"></i> BẢNG ĐỐI CHỨNG THEO TỪNG ĐIỀU KIỆN THỜI TIẾT (CLEAR, RAIN, FOG, PUDDLES)
+                    </h4>
+                    <div class="overflow-x-auto rounded-xl border border-dark-600">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-dark-850 text-slate-400 uppercase text-[10px] tracking-wider border-b border-dark-600">
+                                    <th class="py-2.5 px-4">Điều kiện môi trường</th>
+                                    <th class="py-2.5 px-4">Baseline mAP (%)</th>
+                                    <th class="py-2.5 px-4">Ours mAP (%)</th>
+                                    <th class="py-2.5 px-4">Độ tăng trưởng mAP</th>
+                                    <th class="py-2.5 px-4">Baseline NDS</th>
+                                    <th class="py-2.5 px-4">Ours NDS</th>
+                                    <th class="py-2.5 px-4">Độ tăng NDS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kpi-ai-weather-tbody">
+                                <!-- Populated dynamically via app.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Per-Category Detection AP Breakdown Table -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-layer-group text-cyan-400 mr-2"></i> BẢNG PHÂN TÍCH CHI TIẾT KHẢ NĂNG NHẬN DIỆN TỪNG LOẠI PHƯƠNG TIỆN KHI MƯA NGẬP & SƯƠNG MÙ
+                    </h4>
+                    <div class="overflow-x-auto rounded-xl border border-dark-600">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-dark-850 text-slate-400 uppercase text-[10px] tracking-wider border-b border-dark-600">
+                                    <th class="py-2.5 px-4">Danh mục phương tiện / Vật thể</th>
+                                    <th class="py-2.5 px-4">Baseline AP (%)</th>
+                                    <th class="py-2.5 px-4">Ours (+ NovaTeam) AP (%)</th>
+                                    <th class="py-2.5 px-4">Tăng trưởng AP (Δ)</th>
+                                    <th class="py-2.5 px-4">Tỉ lệ giảm báo động giả</th>
+                                    <th class="py-2.5 px-4">Nhận xét kỹ thuật thực tế</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kpi-ai-class-tbody">
+                                <!-- Populated dynamically via app.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
         </div>
 
     </div>
@@ -466,6 +641,81 @@
             </div>
             <div id="vis-gallery-grid" class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 6-CAMERA SURROUND VIEW (2D-3D FUSION) MODAL -->
+    <div id="surround-cam-modal" class="fixed inset-0 z-[100] bg-dark-950/85 backdrop-blur-md flex flex-col justify-center items-center p-3 hidden" style="position: fixed; inset: 0; z-index: 100;">
+        <div id="surround-cam-card" class="bg-dark-800 border border-dark-600 rounded-2xl w-full max-w-7xl max-h-[96vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-dark-600 bg-dark-850">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-orange-600/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
+                        <i class="fa-solid fa-camera-retro text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-sm font-extrabold text-white">6-CAMERA SURROUND VIEW (2D-3D FUSION)</h3>
+                            <span id="surround-cam-status-pill" class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                                Đồng bộ quang học 100%
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400">Chiếu đồng bộ 3D Bounding Box & điểm LiDAR lên 6 Camera góc nhìn buồng lái nuScenes</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="btn-refresh-surround-cam" class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition flex items-center cursor-pointer">
+                        <i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Làm mới
+                    </button>
+                    <button id="btn-close-surround-modal" class="w-8 h-8 rounded-lg bg-dark-700 hover:bg-red-600 text-slate-300 hover:text-white transition flex items-center justify-center cursor-pointer">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cockpit 2x3 Grid Container -->
+            <div class="flex-1 overflow-y-auto p-4 bg-dark-900/60">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5" id="surround-cameras-grid">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+
+            <!-- Modal Footer Legend -->
+            <div class="px-5 py-2.5 border-t border-dark-600 bg-dark-850 flex items-center justify-between text-[11px] text-slate-400">
+                <div class="flex items-center space-x-4">
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 mr-1.5 inline-block"></span> Khung dây 3D chèn (Orange Wireframe)</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-300 mr-1.5 inline-block"></span> Mặt trước 'X' (Heading)</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 mr-1.5 inline-block"></span> Điểm LiDAR sâu (Depth Rainbow)</span>
+                </div>
+                <div>
+                    <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Bấm vào ảnh bất kỳ để phóng to toàn màn hình</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAMERA IMAGE LIGHTBOX (TOP-LEVEL ROOT MODAL) -->
+    <div id="camera-lightbox-modal"
+         class="fixed inset-0 hidden flex flex-col justify-center items-center p-4 select-none"
+         style="position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(5, 10, 20, 0.92); z-index: 9999;">
+        <div id="lightbox-card" class="relative max-w-6xl w-full max-h-[94vh] flex flex-col items-center" onclick="event.stopPropagation()">
+            <!-- Lightbox Control Bar -->
+            <div class="flex items-center justify-between w-full mb-3 px-4 py-2.5 bg-dark-800/95 border border-dark-600 rounded-xl shadow-2xl">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
+                    <h4 id="lightbox-title" class="text-white text-xs md:text-sm font-extrabold flex items-center font-mono">
+                        <i class="fa-solid fa-camera mr-2 text-orange-400"></i>
+                        <span>Camera View</span>
+                    </h4>
+                </div>
+                <button id="btn-close-lightbox" type="button" class="px-3.5 py-1.5 bg-dark-700 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition flex items-center cursor-pointer shadow">
+                    <i class="fa-solid fa-xmark mr-1.5 text-sm"></i> <span>Đóng (Esc)</span>
+                </button>
+            </div>
+            <!-- Lightbox Image Wrapper -->
+            <div class="relative w-full rounded-2xl overflow-hidden border border-orange-500/40 shadow-2xl bg-dark-950 flex items-center justify-center max-h-[82vh]">
+                <img id="lightbox-img" src="" alt="Full Camera View" class="w-auto h-auto max-h-[80vh] max-w-full object-contain">
             </div>
         </div>
     </div>

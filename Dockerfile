@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Prevent Python from writing .pyc and buffer stdout
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
+ENV PORT=8050
 
 # Install Linux system dependencies required by Open3D, OpenGL, and GLib
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -26,11 +26,15 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy ONLY Application Source Code (Data directories are strictly mounted via volumes)
 COPY n3-08c/ ./n3-08c/
 COPY webapp/ ./webapp/
+COPY scripts/ ./scripts/
+COPY tests/ ./tests/
+COPY run_app.py ./run_app.py
+COPY slides.html* ./
 
 # Create runtime temporary output directory
 RUN mkdir -p webapp/temp_outputs output
 
-EXPOSE 8000
+EXPOSE 8050
 
-# Launch FastAPI via Uvicorn Production ASGI Server
-CMD ["uvicorn", "webapp.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Launch FastAPI via run_app.py Launcher
+CMD ["python", "run_app.py"]

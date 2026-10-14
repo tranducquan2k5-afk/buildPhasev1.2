@@ -33,3 +33,52 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #334155;
 }
+
+/* ===================================================
+   Z-INDEX STACKING HIERARCHY (EXPLICIT ARCHITECTURE)
+   =================================================== */
+
+/* 1. 3D WebGL Canvas Viewport */
+#canvas-container {
+    position: relative;
+    z-index: 1 !important;
+}
+
+#canvas-container canvas {
+    position: relative;
+    z-index: 1 !important;
+}
+
+/* 2. Floating 3D Toolbars & Stats Overlay */
+.viewport-floating-ui,
+.viewport-toolbar,
+#stats-card {
+    z-index: 20 !important;
+}
+
+/* 3. Top Header / Navbar */
+header,
+.top-navbar {
+    position: relative;
+    z-index: 40 !important;
+}
+
+/* 4. 6-Camera Surround View Modal & Vis Gallery Modal */
+#surround-cam-modal,
+#vis-gallery-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100 !important;
+}
+
+/* 5. Camera Image Lightbox (Top-Level Root Modal) */
+#camera-lightbox-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(5, 10, 20, 0.92) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    z-index: 9999 !important;
+}
