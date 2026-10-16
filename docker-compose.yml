@@ -1,6 +1,10 @@
 services:
+  # Chế độ 1: Web Demo CPU nhanh (nhẹ, khởi chạy ngay trên mọi máy)
   n308c-web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: demo
     container_name: n308c_web_demo
     ports:
       - "8050:8050"
@@ -9,4 +13,30 @@ services:
       - ./output:/app/output                 # template bank + kết quả đo (report, cases, videos)
       - ./webapp/temp_outputs:/app/webapp/temp_outputs
       - ./docs/demo:/app/docs/demo:ro        # slide + ảnh cho /slides
+    restart: unless-stopped
+
+  # Chế độ 2: GPU AI Engine (Hỗ trợ GPU NVIDIA, CUDA 11.8, chạy trực tiếp OpenPCDet)
+  n308c-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gpu
+    container_name: n308c_gpu_engine
+    ports:
+      - "8051:8050"
+    volumes:
+      - ./datasets:/app/datasets:ro
+      - ./output:/app/output
+      - ./webapp/temp_outputs:/app/webapp/temp_outputs
+      - ./docs/demo:/app/docs/demo:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: unless-stopped

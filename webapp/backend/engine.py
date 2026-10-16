@@ -138,11 +138,12 @@ class Engine:
             if weather == "storm" and puddles:
                 from task_b.storm import puddle_mask
                 aug = aug[puddle_mask(aug, rng, puddles)]
-        # file tải về
-        from utils.nuscenes_loader import save_bin
-        from utils.pcd_io import save_pcd
-        save_bin(str(tdir / "augmented.bin"), aug)
-        save_pcd(aug, str(tdir / "augmented.pcd"))
+        # file tải về đa định dạng (chuẩn hóa qua utils.io_converter)
+        from utils.io_converter import save_point_cloud
+        save_point_cloud(aug, str(tdir / "augmented.bin"), format=".bin")
+        save_point_cloud(aug, str(tdir / "augmented.pcd"), format=".pcd")
+        save_point_cloud(aug, str(tdir / "augmented.ply"), format=".ply")
+        save_point_cloud(aug, str(tdir / "augmented.xyz"), format=".xyz")
         labels = [{"category": a["category"], "detection_class": detection_class(a["category"]),
                    "translation": a["translation"], "size": a["size"], "rotation": a["rotation"],
                    "velocity_sensor": a.get("velocity_sensor"), "num_lidar_pts": a["num_lidar_pts"],
@@ -153,8 +154,9 @@ class Engine:
                 "reject_stats": r["reject_stats"]}
         (tdir / "labels.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
         with zipfile.ZipFile(tdir / "bundle.zip", "w", zipfile.ZIP_DEFLATED) as z:
-            for f in ("augmented.bin", "augmented.pcd", "labels.json"):
-                z.write(tdir / f, f)
+            for f in ("augmented.bin", "augmented.pcd", "augmented.ply", "augmented.xyz", "labels.json"):
+                if (tdir / f).is_file():
+                    z.write(tdir / f, f)
         state = {"sample_token": sample_token, "scenario": scenario, "weather": weather, "level": level,
                  "annotations": r["annotations_sensor"], "existing": r["existing_annotations"], "sweeps": sweeps}
         (tdir / "state.json").write_text(json.dumps(state), encoding="utf-8")
@@ -165,7 +167,7 @@ class Engine:
                           "points_before": int(len(orig)), "points_after": int(len(aug)),
                           "elapsed_ms": round(1000 * (time.perf_counter() - t0)), "weather": weather, "level": level,
                           "group_stats": r.get("group_stats", [])},
-                "downloads": {k: f"/api/download/{task_id}/{k}" for k in ("pcd", "bin", "labels", "zip")}}
+                "downloads": {k: f"/api/download/{task_id}/{k}" for k in ("pcd", "bin", "ply", "xyz", "labels", "zip")}}
 
     def _preview(self, orig, aug, inserted, existing, statuses=None, preds=None) -> dict:
         from task_a.merge import points_in_new_box
@@ -193,7 +195,7 @@ class Engine:
         return {"original": o_pts, "augmented": a_pts, "obj": a_obj, "boxes": boxes, "preds": preds or []}
 
     # ---------- camera ----------
-    def cameras(self, task_id: str, statuses: Optional[Dict[int, str]] = None) -> dict:
+    def cameras(self, task_id: str, statuses: Optional[Dict[int, str]] = None, mode: str = "photorealistic_box") -> dict:
         from task_a.merge import points_in_new_box
         from utils.camera_proj import SURROUND, surround
         from utils.nuscenes_loader import load_bin
@@ -208,7 +210,7 @@ class Engine:
         boxes += [dict(a, inserted=False, status="real") for a in st["existing"]]
         lvl = st["level"] or (WEATHER_LEVELS.get(st["weather"]) or [None])[-1]
         res = surround(self.nusc, st["sample_token"], boxes, aug[obj],
-                       weather=None if st["weather"] == "none" else st["weather"], level=lvl)
+                       weather=None if st["weather"] == "none" else st["weather"], level=lvl, mode=mode)
         out = []
         for cam in SURROUND:
             img, n = res[cam]
@@ -216,7 +218,7 @@ class Engine:
             img.save(buf, "JPEG", quality=82)
             out.append({"channel": cam, "objects": n,
                         "image": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()})
-        return {"cameras": out, "weather": st["weather"]}
+        return {"cameras": out, "weather": st["weather"], "mode": mode}
 
     # ---------- detector trực tiếp ----------
     def detect(self, task_id: str) -> dict:
@@ -271,3 +273,39 @@ class Engine:
         if not p.is_file():
             raise FileNotFoundError(name)
         return json.loads(p.read_text(encoding="utf-8"))
+
+    # ---------- upload point cloud tùy chỉnh ----------
+    def upload_point_cloud_data(self, file_bytes: bytes, filename: str) -> dict:
+        from utils.io_converter import load_point_cloud, save_point_cloud
+        ext = Path(filename).suffix.lower()
+        pts = load_point_cloud(file_bytes, file_ext=ext)
+        task_id = uuid.uuid4().hex[:12]
+        tdir = TASKS / task_id
+        tdir.mkdir(parents=True, exist_ok=True)
+        save_point_cloud(pts, str(tdir / "augmented.bin"), format=".bin")
+        save_point_cloud(pts, str(tdir / "augmented.pcd"), format=".pcd")
+        save_point_cloud(pts, str(tdir / "augmented.ply"), format=".ply")
+        save_point_cloud(pts, str(tdir / "augmented.xyz"), format=".xyz")
+        preview_pts = pts[np.hypot(pts[:, 0], pts[:, 1]) < PREVIEW_RADIUS]
+        if len(preview_pts) > MAX_PREVIEW:
+            rng = np.random.default_rng(0)
+            idx = rng.choice(len(preview_pts), MAX_PREVIEW, replace=False)
+            preview_pts = preview_pts[idx]
+        p_flat = np.round(preview_pts[:, :4], 2).ravel().tolist()
+        state = {"sample_token": "custom_upload", "filename": filename, "points": len(pts),
+                 "annotations": [], "existing": []}
+        (tdir / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        with zipfile.ZipFile(tdir / "bundle.zip", "w", zipfile.ZIP_DEFLATED) as z:
+            for f in ("augmented.bin", "augmented.pcd", "augmented.ply", "augmented.xyz"):
+                if (tdir / f).is_file():
+                    z.write(tdir / f, f)
+        return {
+            "task_id": task_id,
+            "preview": {"original": p_flat, "augmented": p_flat, "obj": [0] * len(preview_pts), "boxes": [], "preds": []},
+            "stats": {"scenario": "custom_upload", "description": f"Tệp tải lên: {filename}",
+                      "requested": 0, "inserted": 0, "difficult": 0, "reject_stats": {},
+                      "points_before": len(pts), "points_after": len(pts), "elapsed_ms": 15,
+                      "weather": "none", "level": None, "group_stats": []},
+            "downloads": {k: f"/api/download/{task_id}/{k}" for k in ("pcd", "bin", "ply", "xyz", "zip")}
+        }
+

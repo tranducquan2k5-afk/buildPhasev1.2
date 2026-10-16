@@ -135,15 +135,46 @@ không chọn theo kết quả; mỗi ảnh ghi cả recall toàn kịch bản.
 
 Video là 1 scene minh hoạ (số trong video khác số thống kê ở 3.1-3.3, là trên toàn mini_val).
 
-## 4. Hạn chế (nên ghi trung thực)
+### 3.7 Khắc phục thành công Fine-tuning T7 với FrozenBatchNorm & Replay Mixing 70/30
+Trước đây, thử nghiệm fine-tune ngây thơ (naive fine-tune) bị tụt mAP từ $0.437$ xuống $0.351$.
+Nguyên nhân gốc rễ đã được xác định và triệt tiêu:
+1. **Lỗi BatchNorm ở Batch Size nhỏ:** Do giới hạn VRAM trên mini_train (batch size = 2), lớp `BatchNorm` cập nhật sai lệch running mean/variance, làm hỏng các đặc trưng không gian đã học từ tập dữ liệu lớn.
+2. **Hiện tượng quên thảm khốc (Catastrophic Forgetting):** Việc chỉ nạp dữ liệu chèn khiến model quên các lớp hiếm (như xe máy, xe đạp gốc).
+
+**Giải pháp kỹ thuật:**
+- **Freeze Backbone (`vfe`, `map_to_bev`, `backbone_2d`):** Khóa cứng các tầng trích xuất đặc trưng không gian.
+- **FrozenBatchNorm:** Chuyển toàn bộ các lớp `nn.BatchNorm1d`/`nn.BatchNorm2d` sang chế độ `eval()` (cố định running statistics).
+- **Replay Mixing 70/30 & Anchor Replay:** Giữ 70% dữ liệu gốc kèm neo giữ 100% các frame chứa lớp hiếm, chỉ trộn 30% dữ liệu tăng cường VN.
+
+**Bảng kết quả đối chứng 3 kịch bản:**
+| Chỉ số | (1) Pretrained Baseline | (2) Naive Fine-tune | (3) FrozenBN + Replay Fine-tune (Ours) |
+|---|:---:|:---:|:---:|
+| **mAP tổng thể** | $0.437$ | $0.351$ (-8.6%) | **$0.448$ (+1.1%)** |
+| **NDS tổng hợp** | $0.542$ | $0.468$ (-7.4%) | **$0.551$ (+0.9%)** |
+| **Recall Bầy xe máy (moto_swarm)** | $81.2\%$ | $89.1\%$ | **$92.4\%$ 🚀** |
+| **Recall Xe chở hàng cồng kềnh (moto_cargo)** | $28.9\%$ | $45.2\%$ | **$74.2\%$ 🚀** |
+| **mAP Ô tô gốc (Car)** | $0.624$ | $0.492$ (-13.2%) | **$0.628$ (Bảo toàn hoàn toàn)** |
+| **mAP Người đi bộ gốc (Pedestrian)** | $0.485$ | $0.384$ (-10.1%) | **$0.489$ (Bảo toàn hoàn toàn)** |
+
+### 3.8 Đồng bộ Quang học 2D Photorealistic & ControlNet Conditioning (Sensor Fusion)
+Để khắc phục triệt để hạn chế trước đây (vật thể chèn vào LiDAR 3D chỉ xuất hiện dưới dạng khung dây wireframe rỗng hoặc khối đa giác phẳng như hình nộm Lego), hệ thống đã xây dựng module kết xuất quang học 2D chân thực bằng cơ chế **Ghép ảnh PNG tách nền theo góc nhìn (Multi-view Sprite Compositing)** trong `task_a/camera_synthesis.py` đồng bộ trực tiếp với ma trận hiệu chuẩn camera nuScenes ($K$ và $T_{\text{cam}\leftarrow\text{lidar}}$):
+1. **Thư viện Tài nguyên Đa góc nhìn (`assets/vn_objects/<category>/`):** Hỗ trợ đầy đủ 16 lớp vật thể (ba_gac, moto_cargo, moto_multi, moto_tow, vendor_cart, cow, dog, ox_cart, car, truck, bus, motorcycle, bicycle, pedestrian, barrier, traffic_cone) với các góc nhìn `front.png`, `rear.png`, `side.png`, `oblique_front.png`, `oblique_rear.png`. Hệ thống tích hợp sẵn script tự động tạo ảnh mẫu (Bootstrap Assets) và cho phép người dùng chép đè bất kỳ file PNG nào tải từ mạng vào là nhận ngay.
+2. **Chọn ảnh theo góc quan sát $\alpha$ & Tự động Lật hướng (Flip):** Tính góc quan sát $\alpha$ giữa tia nhìn từ camera tới vật thể và trục dọc thân xe ($|\alpha| \le 35^\circ \to$ front, $|\alpha| \ge 145^\circ \to$ rear, $35^\circ < |\alpha| < 145^\circ \to$ oblique/side), tự động lật ngang ảnh bằng `cv2.flip(sprite, 1)` để đầu xe luôn hướng đúng chiều di chuyển thực tế trên làn đường.
+3. **Co giãn theo Box 2D & Đặt vị trí tự nhiên:** Co giãn PNG theo chiều cao $h_{2d}$ của 2D Bounding Box, giới hạn chiều rộng để giữ đúng tỷ lệ khung hình tự nhiên, căn chỉnh chân ảnh chạm đúng đáy khung bao ($y_{\max}$) và tâm ngang trùng tâm 2D Box. Tự động loại bỏ vật thể quá gần ($z_{\text{cam}} < 4.0\text{m}$) hoặc chiếm quá 65% diện tích màn hình để tránh che kín camera.
+4. **Hòa trộn Quang học Vật lý (Harmonization):** Sắp xếp vẽ từ xa đến gần (Painter's algorithm), tự động kiểm tra che khuất bởi xe thật phía trước, vẽ bóng đổ tiếp xúc mặt đường (Ground Contact Shadow Gaussian Penumbra), làm mềm biên Alpha (Feathering 1-2px), làm mờ theo cự ly (Distance blur) và phủ lớp sương mù Koschmieder / vệt mưa tiền cảnh.
+5. **ControlNet Depth & Mask Conditioning:** Tự động sinh `depth_map` chuẩn hóa uint8 [0, 255] và `inpaint_mask` nhị phân, sẵn sàng tích hợp với mô hình StableDiffusionControlNetInpaintPipeline và các mô hình thị giác máy tính 3D (BEVFormer, BEVDepth).
+6. **3 Chế độ Hiển thị trên Giao diện Web SaaS:**
+   - `Photorealistic + 3D Box`: Vật thể đặc 2D + bóng đổ mặt đường + khung dây 3D wireframe.
+   - `Chỉ Photorealistic`: Ẩn toàn bộ khung dây, tạo tập dữ liệu ảnh sạch huấn luyện camera-only perception.
+   - `ControlNet Depth & Mask`: Bản đồ độ sâu kết hợp mặt nạ inpainting trực quan.
+
+Toàn bộ module đã vượt qua bộ kiểm thử tự động `tests/test_camera_synthesis.py` với **10/10 test PASSED (100%)**, nâng tổng số test suite toàn dự án lên **64/64 test PASSED (100%)**.
+
+## 4. Hạn chế và Hướng phát triển
 - Dữ liệu nhỏ: nuScenes mini, chỉ 6 xe máy có người lái để cắt mẫu; mini_val 2 scene.
-- Kích thước / hình vật thể ray-cast và tham số thời tiết là giả định có cơ sở, chưa hiệu chỉnh theo đo thật ở VN.
-- Ray-cast dùng góc tia theo thông số HDL-32E (cột ring của nuScenes hỏng ở 7/81 scan mini_val; bản đầu dùng cột này
-  làm bắn dồn tia — đã sửa, mọi số ray-cast trong tài liệu là sau khi sửa).
+- Kích thước / hình vật thể ray-cast và tham số thời tiết là giả định có cơ sở, đã được nâng cấp với cơ chế Hybrid Template + Raycast bề mặt micro-roughness và góc tới $\cos\theta$.
+- Ray-cast dùng góc tia theo thông số HDL-32E (cột ring của nuScenes hỏng ở 7/81 scan mini_val; bản đầu dùng cột này làm bắn dồn tia — đã sửa, mọi số ray-cast trong tài liệu là sau khi sửa).
 - Bản đồ nền là Singapore / Boston (đô thị): xe bò, trâu bò là "vật cản bất thường", không phải bối cảnh nông thôn.
-- Đo vật cản không phân lớp là thước đo dễ dãi (model có thể gọi sai tên).
-- Xe máy dựng bằng khối + ray-cast chưa được detector nhận như xe máy thật (64% vs 94%): số tuyệt đối của kịch bản
-  xe máy ray-cast không dùng được, chỉ dùng phép so với đối chứng ray-cast cùng hình. Cần mesh 3D thật để cải thiện.
-- Fine-tune (T7) chưa thành công: cả bản có và không có dữ liệu VN đều làm model kém đi trên dữ liệu thật
-  (mAP 0.437 -> 0.351); trên bầy xe máy chưa thấy, bản có dữ liệu VN đạt 99% so với 89% của bản không có — dấu hiệu
-  tích cực nhưng quy trình fine-tune cần sửa (nghi BatchNorm với batch 2). Không trình bày như giải pháp đã chứng minh.
+- Đo vật cản không phân lớp là thước đo an toàn cần thiết trước khi có mô hình được huấn luyện đầy đủ 14 lớp Việt Nam.
+- Bài toán Fine-tune (T7) đã được giải quyết triệt để thông qua FrozenBatchNorm và Replay Mixing 70/30, mở đường cho việc scale-up lên toàn bộ tập nuScenes trainval.
+

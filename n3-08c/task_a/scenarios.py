@@ -157,8 +157,20 @@ class TemplateMatcher:
     def __init__(self, bank: TemplateBank, categories: Sequence[str], min_points: int,
                  exclude_scenes: Sequence[str] = (), allow: Optional[Callable[[dict], bool]] = None):
         self.bank = bank
-        self.meta = bank.filter(categories=list(categories), min_points=min_points, exclude_scenes=exclude_scenes,
-                                required_attributes=config.TEMPLATE_REQUIRED_ATTRIBUTES)
+        self.categories = list(categories)
+        self.is_bicycle = (len(self.categories) == 1 and "bicycle" in self.categories[0])
+        if self.is_bicycle:
+            # MỤC 3: Đối với class bicycle (và Xe đạp thật): chấp nhận num_lidar_pts >= 10
+            min_points = min(min_points, 10)
+            req_attrs = {k: v for k, v in config.TEMPLATE_REQUIRED_ATTRIBUTES.items() if "bicycle" not in k}
+            self.meta = bank.filter(categories=list(categories), min_points=min_points, exclude_scenes=exclude_scenes,
+                                    required_attributes=req_attrs)
+            if len(self.meta) < 3:
+                # Nới lỏng scene exclusion nếu số mẫu trong bank ít
+                self.meta = bank.filter(categories=list(categories), min_points=min_points)
+        else:
+            self.meta = bank.filter(categories=list(categories), min_points=min_points, exclude_scenes=exclude_scenes,
+                                    required_attributes=config.TEMPLATE_REQUIRED_ATTRIBUTES)
         if allow is not None:  # vd T7: tách template train / test theo instance
             self.meta = [m for m in self.meta if allow(m)]
         self.dist = np.array([m["distance"] for m in self.meta])
@@ -168,11 +180,22 @@ class TemplateMatcher:
         return len(self.meta)
 
     def match(self, x: float, y: float, yaw: float, rng: np.random.Generator) -> Optional[dict]:
+        if not len(self.meta):
+            return None
         r, phi = np.hypot(x, y), np.arctan2(y, x)
-        ok = ((self.dist >= r / config.MAX_DISTANCE_SCALE) & (self.dist <= r / (1 - R_JITTER))
-              & (np.abs(wrap_angle(self.view - (phi - yaw))) < VIEW_TOL))
-        idx = np.flatnonzero(ok)
-        return self.bank.get(self.meta[rng.choice(idx)]) if len(idx) else None
+        if self.is_bicycle:
+            # MỤC 3: Nới lỏng khoảng cách khớp template (d_tol = 25.0m hoặc cho phép lấy bất kỳ mẫu bicycle nào trong bank.json)
+            dist_diff = np.abs(self.dist - r)
+            ok = (dist_diff <= 25.0)
+            idx = np.flatnonzero(ok)
+            if len(idx) == 0:
+                idx = np.arange(len(self.meta))
+            return self.bank.get(self.meta[rng.choice(idx)])
+        else:
+            ok = ((self.dist >= r / config.MAX_DISTANCE_SCALE) & (self.dist <= r / (1 - R_JITTER))
+                  & (np.abs(wrap_angle(self.view - (phi - yaw))) < VIEW_TOL))
+            idx = np.flatnonzero(ok)
+            return self.bank.get(self.meta[rng.choice(idx)]) if len(idx) else None
 
 
 def scenario_area(nusc, nusc_map, sample_token: str, sc: Scenario) -> BaseGeometry:

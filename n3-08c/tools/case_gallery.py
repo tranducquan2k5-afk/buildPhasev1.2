@@ -190,32 +190,17 @@ def camera_tiles(out_dir, nusc, tok, pts, gts, recs, n_real, weather=None, level
     for g in gts[n_real:]:
         obj |= points_in_new_box(p, g)
     sx, sy = TILE_W / 1600, TILE_H / 900
+    from utils.camera_proj import render_camera
+    boxes = []
+    for i, (g, r) in enumerate(zip(gts, recs)):
+        status = "ok" if r["detected"] else r["miss"].split(":")[0]
+        boxes.append(dict(g, inserted=(i >= n_real), status=status))
+
     seen = {}
-    for cam in CAMS:
-        T, K, img_path = _lidar_to_cam(nusc, tok, cam)
-        img = Image.open(img_path).convert("RGB").resize((TILE_W, TILE_H))
-        if weather:
-            from task_b.camera_weather import apply_camera_weather
-            img = Image.fromarray(apply_camera_weather(np.asarray(img), weather, level,
-                                                       np.random.default_rng(CAMS.index(cam))))
-        dr = ImageDraw.Draw(img, "RGBA")
-        n_seen = 0
-        order = sorted(range(len(gts)), key=lambda i: i >= n_real)  # object thật vẽ trước, object chèn đè lên
-        for i in order:
-            g, r = gts[i], recs[i]
-            cuv, cok, cfront = _project(T, K, to_box(g).corners().T)
-            if not cfront.all() or not cok.any():
-                continue
-            status = "ok" if r["detected"] else r["miss"].split(":")[0]
-            rgb = tuple(int(STATUS_COLOR[status][k:k + 2], 16) for k in (1, 3, 5))
-            inserted = i >= n_real
-            n_seen += inserted
-            for a, b in BOX_EDGES:
-                dr.line([(cuv[a, 0] * sx, cuv[a, 1] * sy), (cuv[b, 0] * sx, cuv[b, 1] * sy)],
-                        fill=rgb + ((255,) if inserted else (110,)), width=2 if inserted else 1)
-        uv, ok, _ = _project(T, K, p[obj, :3])
-        for u, v in uv[ok]:
-            dr.ellipse([u * sx - 1.6, v * sy - 1.6, u * sx + 1.6, v * sy + 1.6], fill=(177, 76, 255, 255))
+    for idx, cam in enumerate(CAMS):
+        img, n_seen = render_camera(nusc, tok, cam, boxes, obj_points=None,
+                                    size=(TILE_W, TILE_H), weather=weather, level=level,
+                                    seed=idx, mode="photorealistic_box")
         img.save(os.path.join(out_dir, f"{cam}.jpg"), quality=82)
         seen[cam] = int(n_seen)
     return seen

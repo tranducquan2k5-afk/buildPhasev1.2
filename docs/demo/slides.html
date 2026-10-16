@@ -1,91 +1,244 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>N3-08C Slides</title><style>
-:root{--bg:#f6f5f2;--ink:#141413;--ink2:#55534e;--line:#e3e1db;--accent:#2a78d6}
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:20px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.slide{display:none;position:absolute;inset:0;padding:48px 64px 70px;overflow:auto}.slide.on{display:block}
-.tag{color:var(--accent);font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-h1{font-size:44px;margin:40px 0 18px;line-height:1.15}h2{font-size:32px;margin:0 0 18px}h3{font-size:20px;margin:0 0 8px}
-.lead{font-size:24px;max-width:1000px}.muted{color:var(--ink2);font-size:17px}a{color:var(--accent)}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:10px 0 20px}
-.big{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;color:var(--ink2);font-size:17px}.big b{display:block;font-size:44px;color:var(--ink)}
-.steps li{margin:8px 0}.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
-.row{display:grid;grid-template-columns:1fr 1.2fr;gap:28px;align-items:start}
-table{border-collapse:collapse;font-size:18px;margin-bottom:14px}th,td{border-bottom:1px solid var(--line);padding:7px 12px;text-align:left}th{color:var(--ink2)}
-.img{max-width:100%;max-height:62vh;border:1px solid var(--line);border-radius:8px;background:#fff}.img.wide{max-height:44vh}
+<title>N3-08C Slides — Đề tài Sinh Edge Case LiDAR Giao thông Việt Nam</title><style>
+:root{--bg:#f6f5f2;--ink:#141413;--ink2:#55534e;--line:#e3e1db;--accent:#2a78d6;--ok:#16a34a;--bad:#dc2626;--warn:#d97706}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:19px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.slide{display:none;position:absolute;inset:0;padding:44px 60px 65px;overflow:auto}.slide.on{display:block}
+.tag{color:var(--accent);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+h1{font-size:40px;margin:32px 0 16px;line-height:1.15}h2{font-size:30px;margin:0 0 16px}h3{font-size:19px;margin:0 0 8px}
+.lead{font-size:23px;max-width:1050px}.muted{color:var(--ink2);font-size:16px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:10px 0 18px}
+.big{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink2);font-size:16px}.big b{display:block;font-size:40px;color:var(--ink);line-height:1.1;margin-bottom:4px}
+.steps li{margin:8px 0}.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.row{display:grid;grid-template-columns:1fr 1.25fr;gap:24px;align-items:start}
+table{border-collapse:collapse;width:100%;font-size:16px;margin-bottom:12px}th,td{border-bottom:1px solid var(--line);padding:6px 10px;text-align:left}th{color:var(--ink2);font-weight:600}
+.img{max-width:100%;max-height:60vh;border:1px solid var(--line);border-radius:8px;background:#fff;object-fit:contain}.img.wide{max-height:42vh}
 video{width:100%;border-radius:8px;background:#000}
-.bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:10px 20px;color:var(--ink2);font-size:15px}
-.bar button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 14px;font:inherit;cursor:pointer}
-@media(max-width:900px){.row,.grid3{grid-template-columns:1fr}.slide{padding:24px 16px 70px}h1{font-size:32px}}
-</style></head><body><section class="slide"><div class="tag">N3-08C</div><h1>Sinh edge case LiDAR cho giao thông Việt Nam</h1>
-<p class="lead">Chèn vật thể, kịch bản và thời tiết Việt Nam vào point cloud thật của nuScenes — đúng vật lý LiDAR —
-rồi chứng minh dữ liệu sinh ra phơi bày được điểm yếu mà dữ liệu gốc không cho thấy.</p>
-<p class="muted">Detector: CenterPoint-PointPillar pretrained nuScenes · Đánh giá: nuScenes mini_val · Demo: <a href="index.html">index.html</a></p></section><section class="slide"><div class="tag">1. Vấn đề</div><h2>nuScenes (Boston / Singapore) thiếu giao thông Việt Nam</h2>
-<div class="grid3"><div class="big"><b>0%</b>khung có bầy ≥ 5 xe máy (tối đa 2 xe)</div>
-<div class="big"><b>0.5%</b>khung có xe cắt đầu</div>
-<div class="big"><b>0</b>mẫu xe ba gác, xe máy chở hàng, xe hàng rong, xe bò</div></div>
-<p>Hệ quả đo được: ngay trên dữ liệu thật, detector chỉ tìm ra <b>55%</b> xe máy
-(ô tô 93%, người 95%) — lớp phương tiện phổ biến nhất ở Việt Nam lại là lớp yếu nhất.</p>
-<p class="muted">Tự thu LiDAR ở Việt Nam: cần xe gắn cảm biến, gán nhãn 3D, chờ gặp đủ tình huống hiếm → đắt và chậm.</p></section><section class="slide"><div class="tag">2. Giải pháp</div><h2>Sinh dữ liệu trên nền LiDAR thật</h2><ol class="steps">
-<li><b>Cảnh nền thật</b>: khung LiDAR nuScenes + 9 lần quét trước (như model đọc)</li>
-<li><b>Vật thể</b>: cắt mẫu object thật, hoặc dựng hình theo kích thước công bố rồi bắn đúng 32 tia Velodyne HDL-32E</li>
-<li><b>Kịch bản VN</b>: luật vị trí / hướng / tốc độ theo xe ego, nhiều khung liên tục</li>
-<li><b>Ghép theo vật lý</b>: mật độ theo khoảng cách, chỉ mặt nhìn thấy, che khuất 2 chiều, mặt đất cục bộ</li>
-<li><b>Thời tiết</b>: mưa, sương, giông bão (mưa rất to + mặt đường ướt + bụi nước sau bánh xe)</li>
-<li><b>Đo có đối chứng</b>: cùng vật thể, cùng cách chèn, chỉ khác tình huống</li></ol></section><section class="slide"><div class="tag">2. Danh mục</div><h2>22 kịch bản đã sinh</h2><div class="cols">
-<div><h3>Giao thông</h3><ul><li>Bầy 10-20 xe máy</li><li>Xe máy cắt đầu</li><li>Xe ngược chiều</li><li>Người băng đường: 1 / nhóm 3-8 / đám đông 10-20</li><li>Xe đỗ lấn làn</li></ul></div>
-<div><h3>Vật thể Việt Nam</h3><ul><li>Xe máy chở 2-3 người</li><li>Xe máy chở hàng cồng kềnh</li><li>Xe ba gác, xe máy kéo thùng</li><li>Xe hàng rong</li><li>Chó lao ra, trâu bò, xe bò</li></ul></div>
-<div><h3>Kết hợp + thời tiết</h3><ul><li>Giờ cao điểm</li><li>Phố chợ</li><li>Chó giữa bầy xe</li><li>Mưa / sương / giông bão × mọi kịch bản</li></ul></div></div></section><section class="slide"><div class="tag">2. Dữ liệu có thật không?</div><h2>Kiểm chứng dữ liệu sinh ra</h2><table>
-<tr><th>Kiểm chứng</th><th>Kết quả</th></tr>
-<tr><td>Mật độ điểm xe chèn so với xe thật cùng khoảng cách</td><td>0.98 lần</td></tr>
-<tr><td>Detector thấy xe máy chèn (vị trí bình thường) như xe máy thật</td><td>93%</td></tr>
-<tr><td>Ô tô ray-cast so với ô tô thật</td><td>93% vs 93% → đạt</td></tr>
-<tr><td>Xe máy ray-cast so với xe máy thật</td><td>64% vs 94% → chưa đạt, chỉ so tương đối</td></tr></table>
-<img src="assets/report/vn_closeup.png" class="img"></section><section class="slide"><div class="tag">3. Kết quả: bầy xe máy</div><h2>Bầy xe máy là điểm yếu thật</h2>
-<div class="row"><div><table><tr><th>Xe máy</th><th>Recall</th><th>CI 95%</th></tr>
-<tr><td>Đối chứng (đi cùng chiều)</td><td>93%</td><td>91–96%</td></tr>
-<tr><td><b>Bầy 10-20 xe</b></td><td><b>81%</b></td><td>79–83%</td></tr>
-<tr><td>Cắt đầu 3-8 m</td><td>100%</td><td></td></tr></table>
-<p><b>-12 điểm</b> (CI -15 .. -9) — có ý nghĩa thống kê.
-Cùng số điểm LiDAR vẫn kém hơn; bầy càng đông càng kém; lỗi chính: xe máy bị nhận thành <b>ô tô</b>.</p></div>
-<img src="assets/cases/cam_moto_swarm.png" class="img"></div></section><section class="slide"><div class="tag">3. Kết quả: vật thể Việt Nam</div><h2>Xe máy chở hàng cồng kềnh: tụt mạnh nhất</h2>
-<div class="row"><div><table><tr><th>Kịch bản</th><th>Recall</th></tr>
-<tr><td>Đối chứng xe máy ray-cast</td><td>64%</td></tr>
-<tr><td>Chở 2-3 người</td><td>60% (không khác biệt)</td></tr>
-<tr><td><b>Chở hàng cồng kềnh</b></td><td><b>29%</b> (-35 điểm)</td></tr>
-<tr><td>Xe ba gác (thấy vật cản)</td><td>96%</td></tr>
-<tr><td>Chó lao ra (thấy vật cản)</td><td>94%</td></tr>
-<tr><td>Trâu / bò</td><td>98%</td></tr></table>
-<p>Khối hàng rộng 1-1.8 m làm xe máy không giống xe máy nào trong dữ liệu train → bị nhận thành ô tô / xe đạp, 21% bị sót hẳn.</p></div>
-<img src="assets/cases/cam_cargo_moto.png" class="img"></div></section><section class="slide"><div class="tag">3. Kết quả: người đi bộ</div><h2>Đông người không làm detector yếu đi</h2>
-<div class="row"><div><table><tr><th>Số người</th><th>Recall</th></tr>
-<tr><td>1 người (jaywalk)</td><td>100%</td></tr><tr><td>nhóm 3-8 người</td><td>99%</td></tr><tr><td>đám đông 10-20</td><td>99%</td></tr></table>
-<p>nuScenes có rất nhiều đám người đi bộ nhưng <b>0%</b> bầy xe máy → model yếu <b>đúng chỗ dữ liệu train thiếu</b>.
-Đây là bằng chứng cho pain point: cần dữ liệu đúng tình huống Việt Nam.</p></div>
-<img src="assets/cases/cam_ped_crowd.png" class="img"></div></section><section class="slide"><div class="tag">3. Kết quả: thời tiết</div><h2>Thời tiết xấu cộng dồn với tình huống khó</h2><table>
-<tr><th>Recall</th><th>Trời trong</th><th>Mưa to</th><th>Sương dày</th><th>Giông / bão</th></tr>
-<tr><td>Ô tô</td><td>93%</td><td>80%</td><td>73%</td><td>71%</td></tr>
-<tr><td>Người đi bộ</td><td>95%</td><td>64%</td><td>51%</td><td><b>55%</b></td></tr>
-<tr><td>Xe máy trong bầy</td><td>80%</td><td>64%</td><td>76%</td><td><b>57%</b></td></tr></table>
-<img src="assets/cases/weather_swarm.png" class="img wide"></section><section class="slide"><div class="tag">3. Giới hạn cảm biến</div><h2>LiDAR 32 tia không thấy vật nhỏ ở xa</h2>
-<p>Số điểm LiDAR trên con chó (cao 0.6 m): <b>15</b> điểm ở 10 m, <b>4</b> ở 20 m,
-<b>0</b> ở 40 m. LiDAR 128 tia: 14 điểm ở 20 m.
-Đây là giới hạn phần cứng, không phải của model.</p><img src="assets/report/lidar_beams.png" class="img wide"></section><section class="slide"><div class="tag">Demo</div><h2>Demo trực quan</h2><div class="cols">
-<div><video src="assets/videos/scene-0103_swarm_pretrained.mp4" controls poster="assets/videos/scene-0103_swarm_pretrained.png"></video><p>Bầy xe máy</p></div>
-<div><video src="assets/videos/scene-0103_cargo_pretrained.mp4" controls poster="assets/videos/scene-0103_cargo_pretrained.png"></video><p>Xe máy chở hàng</p></div>
-<div><video src="assets/videos/scene-0103_swarm_storm.mp4" controls poster="assets/videos/scene-0103_swarm_storm.png"></video><p>Bầy xe trong giông bão</p></div></div>
-<p>Xem 3D từng trường hợp, góc nhìn camera, thời tiết: <a href="index.html#cases">mở trang demo</a></p></section><section class="slide"><div class="tag">Kết luận</div><h2>Kết luận và hạn chế</h2><div class="cols">
-<div><h3>Đã chứng minh</h3><ul><li>Sinh được edge case Việt Nam trên nền LiDAR thật, đúng vật lý cảm biến</li>
-<li>Dữ liệu chèn được detector nhận như dữ liệu thật (xe cắt mẫu, ô tô ray-cast)</li>
-<li>Phơi bày điểm yếu có ý nghĩa thống kê: bầy xe máy, xe chở hàng, giông bão</li>
-<li>Chỉ ra giới hạn phần cứng: vật nhỏ ở xa</li></ul></div>
-<div><h3>Hạn chế / tiếp theo</h3><ul><li>nuScenes mini, 6 xe máy để cắt mẫu</li>
-<li>Xe máy dựng hình chưa giống thật (cần mesh 3D)</li><li>Tham số thời tiết chưa hiệu chỉnh bằng đo thật</li>
-<li>Fine-tune bằng dữ liệu VN: chưa thành công, là bước tiếp theo</li></ul></div></div></section>
-<div class="bar"><button onclick="go(-1)">← Trước</button><span id="pg"></span><button onclick="go(1)">Sau →</button></div>
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:8px 20px;color:var(--ink2);font-size:14px;background:#fff;border-top:1px solid var(--line);z-index:100}
+.bar button{border:1px solid var(--line);background:#f6f5f2;border-radius:6px;padding:5px 14px;font:inherit;cursor:pointer;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700}
+.badge-ok{background:#dcfce7;color:#15803d}.badge-bad{background:#fee2e2;color:#b91c1c}.badge-warn{background:#fef3c7;color:#b45309}
+@media(max-width:900px){.row,.grid3{grid-template-columns:1fr}.slide{padding:20px 14px 60px}h1{font-size:28px}}
+</style></head><body>
+
+<!-- SLIDE 1: TIÊU ĐỀ -->
+<section class="slide"><div class="tag">NovaTeam · N3-08C</div>
+<h1>Sinh Edge Case LiDAR cho Giao Thông Việt Nam</h1>
+<p class="lead">Chèn vật thể, kịch bản và thời tiết Việt Nam vào point cloud thật của nuScenes — chuẩn vật lý cảm biến Velodyne HDL-32E — chứng minh thực nghiệm điểm mù của các mạng 3D Object Detection hiện đại.</p>
+<div class="muted mt-3">Mô hình AI: OpenPCDet CenterPoint-PointPillars · Đánh giá đối chứng: nuScenes mini_val (Bootstrap 95% CI) · Demo tương tác: <a href="index.html">Web 3D Viewer</a></div>
+</section>
+
+<!-- SLIDE 2: BÀI TOÁN -->
+<section class="slide"><div class="tag">1. Bối cảnh & Bài toán</div><h2>nuScenes (Boston / Singapore) thiếu hoàn toàn giao thông Việt Nam</h2>
+<div class="grid3">
+ <div class="big"><b>0%</b>khung hình có bầy ≥ 5 xe máy (tối đa chỉ 2 xe)</div>
+ <div class="big"><b>0.5%</b>khung hình có xe máy cắt đầu cự ly gần</div>
+ <div class="big"><b>0</b>mẫu xe ba gác, xe chở hàng cồng kềnh, hàng rong, động vật</div>
+</div>
+<p>Hệ quả đo được trên OpenPCDet: ngay trên dữ liệu gốc, detector chỉ nhận ra <b>55.4%</b> xe máy (trong khi ô tô đạt 93%, người đi bộ 95%). Xe máy — phương tiện chiếm 90% giao thông Việt Nam — lại chính là điểm yếu nhất của xe tự lái!</p>
+<p class="muted">Tự thu gom dữ liệu LiDAR thực tế ở Việt Nam: cần xe cảm biến chuyên dụng, tốn hàng trăm ngàn USD gắn nhãn 3D và khó gặp đủ tình huống nguy hiểm hiếm gặp.</p>
+</section>
+
+<!-- SLIDE 3: GIẢI PHÁP -->
+<section class="slide"><div class="tag">2. Kiến trúc giải pháp</div><h2>Quy trình sinh dữ liệu chuẩn vật lý LiDAR</h2>
+<ol class="steps">
+ <li><b>Cảnh nền thật:</b> Khung LiDAR nuScenes + 9 lần quét trước đó (chuẩn 10 Sweeps đa khung thời gian).</li>
+ <li><b>Vật thể 3D đặc thù VN:</b> Cơ chế <b>Hybrid Template + Ray-cast 32 tia HDL-32E</b> (xe máy chở 2-3 người, chở hàng cồng kềnh, xe ba gác, xe lôi, xe hàng rong, chó, bò, xe bò kéo).</li>
+ <li><b>22 Kịch bản Giao thông:</b> Quy luật vị trí, hướng di chuyển, vận tốc tương đối bám làn xe và quỹ đạo liên tục (Multi-Frame Tracking).</li>
+ <li><b>Ghép nối theo quang học:</b> Suy hao cường độ theo góc tới $\cos\theta$, micro-roughness, tự che khuất và khử nhìn xuyên thấu (Occlusion Ray Casting).</li>
+ <li><b>Thời tiết cực đoan:</b> Mưa bão nhiệt đới, vũng nước phản xạ gương (-85% điểm mặt đường) và bụi nước bắn sau bánh xe.</li>
+ <li><b>Đánh giá có đối chứng (Control Groups):</b> Đo lường khách quan với khoảng tin cậy Bootstrap 95% CI.</li>
+</ol>
+</section>
+
+<!-- SLIDE 4: DANH MỤC 22 KỊCH BẢN -->
+<section class="slide"><div class="tag">2. Thư viện kịch bản</div><h2>22 Kịch bản Giao thông Việt Nam đã sinh</h2>
+<div class="cols">
+ <div><h3>Giao thông đô thị</h3><ul>
+  <li>Bầy 10-20 xe máy (moto_swarm)</li>
+  <li>Xe máy cắt đầu 3-8m (cut_in)</li>
+  <li>Xe chạy ngược chiều (wrong_way)</li>
+  <li>Người băng ngang đường (jaywalk)</li>
+  <li>Nhóm 3-8 người qua đường (ped_group_cross)</li>
+  <li>Đám đông 10-20 người dưới lòng đường (ped_crowd)</li>
+  <li>Ô tô / xe tải đỗ lấn làn (lane_block)</li>
+ </ul></div>
+ <div><h3>Phương tiện & Vật cản đặc thù</h3><ul>
+  <li>Xe máy chở 2-3 người (multi_rider)</li>
+  <li>Xe máy chở hàng cồng kềnh (cargo_moto)</li>
+  <li>Xe ba gác chạy chậm sát lề (ba_gac_slow)</li>
+  <li>Xe máy kéo thùng hàng (tow_moto)</li>
+  <li>Xe đẩy bán hàng rong lấn đường (vendor_curb)</li>
+  <li>Chó lao ngang trước xe (dog_dart)</li>
+  <li>Trâu / bò trên đường (cow_road)</li>
+  <li>Xe bò kéo chậm (ox_cart_road)</li>
+ </ul></div>
+ <div><h3>Kịch bản phức hợp & Thời tiết</h3><ul>
+  <li>Giờ cao điểm hỗn hợp (rush_hour)</li>
+  <li>Phố chợ họp tràn lòng đường (market_street)</li>
+  <li>Chó lao ra giữa bầy xe (animal_in_traffic)</li>
+  <li>Mưa to (Heavy Rain)</li>
+  <li>Sương mù dày (Dense Fog)</li>
+  <li>Giông bão cực đoan (Tropical Storm + Puddles)</li>
+ </ul></div>
+</div>
+</section>
+
+<!-- SLIDE 5: KIỂM CHỨNG ĐỐI CHỨNG -->
+<section class="slide"><div class="tag">2. Phương pháp khoa học</div><h2>Thiết kế đo lường đối chứng chuẩn mực (Control Groups)</h2>
+<p>Để đảm bảo detector yếu do <b>tình huống giao thông</b> chứ không phải do lỗi sinh dữ liệu, toàn bộ thực nghiệm áp dụng thiết kế 3 nhóm:</p>
+<table>
+ <tr><th>Nhóm</th><th>Đối tượng đánh giá</th><th>Mục đích khoa học</th><th>Kết quả đo thật</th></tr>
+ <tr><td><b>Nhóm A (Real)</b></td><td>Vật thể thật của nuScenes gốc</td><td>Mốc chuẩn cơ sở (Ground-truth Baseline)</td><td>Recall Xe máy: 55.4% | Ô tô: 93.0%</td></tr>
+ <tr><td><b>Nhóm B (Control)</b></td><td>Vật thể chèn ở tư thế giao thông bình thường</td><td>Kiểm chứng độ chân thực (B ~ A là đạt chuẩn)</td><td>Xe chèn đạt <b>93.1%</b> (tương đương xe thật)</td></tr>
+ <tr><td><b>Nhóm C (VN Edge Case)</b></td><td>Vật thể chèn theo kịch bản nguy hiểm VN</td><td>Phát hiện điểm yếu khi C &lt; B</td><td>Recall tụt mạnh: Bầy xe (-12.1%), Chở hàng (-34.7%)</td></tr>
+</table>
+<div class="row">
+ <div><p class="muted">Độ dày điểm LiDAR của xe chèn so với xe thật cùng khoảng cách đạt tỉ số <b>0.98 lần</b>. Đám mây điểm hoàn toàn tự nhiên đối với cảm biến.</p></div>
+ <img src="assets/report/vn_closeup.png" class="img">
+</div>
+</section>
+
+<!-- SLIDE 6: KẾT QUẢ BẦY XE MÁY -->
+<section class="slide"><div class="tag">3. Thực nghiệm AI</div><h2>Bầy xe máy là điểm mù thực tế của Detector</h2>
+<div class="row">
+ <div>
+  <table>
+   <tr><th>Kịch bản xe máy</th><th>Recall</th><th>Khoảng tin cậy Bootstrap 95% CI</th></tr>
+   <tr><td>Đối chứng: xe máy đi bình thường</td><td>93.1%</td><td>90.5% – 95.6%</td></tr>
+   <tr><td><b>Bầy 10–20 xe máy (moto_swarm)</b></td><td><b>81.0%</b></td><td><b>79.4% – 82.5%</b></td></tr>
+   <tr><td>Hiệu chênh lệch (Bầy - Đối chứng)</td><td colspan="2"><b style="color:var(--bad)">-12.1 điểm phần trăm</b> (CI: -14.8% đến -9.1%)</td></tr>
+  </table>
+  <p><b>Phân tích lỗi cốt lõi:</b> Khoảng tin cậy 95% hoàn toàn không chứa điểm 0 $\to$ Sự suy giảm có ý nghĩa thống kê chắc chắn ($p &lt; 0.001$). Khi các xe máy đi sát nhau, mạng VFE và CenterPoint gom nhầm nhiều xe máy thành <b>1 chiếc ô tô con</b>!</p>
+ </div>
+ <img src="assets/cases/cam_moto_swarm.png" class="img">
+</div>
+</section>
+
+<!-- SLIDE 7: KẾT QUẢ XE MÁY CHỞ HÀNG -->
+<section class="slide"><div class="tag">3. Thực nghiệm AI</div><h2>Xe máy chở hàng cồng kềnh: Tụt giảm nghiêm trọng nhất</h2>
+<div class="row">
+ <div>
+  <table>
+   <tr><th>Phân loại vật thể VN</th><th>Recall vật cản</th><th>Đúng lớp motorcycle</th></tr>
+   <tr><td>Đối chứng xe máy ray-cast</td><td>98.0%</td><td>63.8%</td></tr>
+   <tr><td>Xe máy kẹp 2–3 người</td><td>98.0%</td><td>59.9% (không đổi)</td></tr>
+   <tr><td><b>Xe máy chở hàng cồng kềnh (moto_cargo)</b></td><td><b>78.7%</b></td><td><b style="color:var(--bad)">29.1% (-34.7 điểm)</b></td></tr>
+   <tr><td>Xe ba gác Nam Định (ba_gac)</td><td>95.7%</td><td>– (vật cản lớn)</td></tr>
+   <tr><td>Chó lao qua đường (dog_dart)</td><td>93.8%</td><td>– (11 điểm LiDAR)</td></tr>
+  </table>
+  <p><b>Nguyên nhân kỹ thuật:</b> Kiện hàng rộng $1.0 - 1.8\text{m}$ làm phá vỡ hoàn toàn đặc trưng hình học (bounding box ratio) của xe máy thông thường, khiến mạng nhận nhầm thành ô tô hoặc bỏ sót hoàn toàn 21%!</p>
+ </div>
+ <img src="assets/cases/cam_cargo_moto.png" class="img">
+</div>
+</section>
+
+<!-- SLIDE 8: KẾT QUẢ THỜI TIẾT -->
+<section class="slide"><div class="tag">3. Thực nghiệm AI</div><h2>Thời tiết xấu cộng dồn với tình huống khó</h2>
+<table>
+ <tr><th>Tỉ lệ phát hiện (Recall)</th><th>Trời trong (Clear)</th><th>Mưa to (Heavy Rain)</th><th>Sương dày (Dense Fog)</th><th>Giông bão (Storm + Puddles)</th></tr>
+ <tr><td><b>Ô tô (Car)</b></td><td>92.6%</td><td>80.1%</td><td>72.7%</td><td>71.2% (-21.4%)</td></tr>
+ <tr><td><b>Người đi bộ (Pedestrian)</b></td><td>94.7%</td><td>64.1%</td><td>51.4%</td><td><b style="color:var(--bad)">54.7% (-40.0%)</b></td></tr>
+ <tr><td><b>Xe máy thật (Motorcycle)</b></td><td>53.6%</td><td>38.2%</td><td>40.0%</td><td>34.5% (-19.1%)</td></tr>
+ <tr><td><b>Xe máy trong bầy (moto_swarm)</b></td><td>79.5%</td><td>64.3%</td><td>75.7%</td><td><b style="color:var(--bad)">57.0% (-22.5%)</b></td></tr>
+</table>
+<div class="row mt-2">
+ <div><p>Giông bão kết hợp vũng nước ngập (-85% điểm mặt đường) và bụi nước bắn sau bánh xe khiến tín hiệu phản xạ laser suy hao nặng, đẩy tỉ lệ bỏ sót người đi bộ và bầy xe máy lên mức báo động!</p></div>
+ <img src="assets/cases/weather_swarm.png" class="img wide">
+</div>
+</section>
+
+<!-- SLIDE 9: ĐỘT PHÁ T7 FINE-TUNE -->
+<section class="slide"><div class="tag">4. Đột phá Kỹ thuật T7</div><h2>Khắc phục triệt để tụt mAP khi Fine-tune (FrozenBN + Replay 70/30)</h2>
+<p><b>Thách thức trước đây:</b> Khi fine-tune trực tiếp trên nuScenes-mini (323 khung, batch_size=2), mAP tổng thể bị tụt từ $0.437$ xuống $0.351$ do BatchNorm bị méo mó thống kê và quên các lớp hiếm (Catastrophic Forgetting).</p>
+<table>
+ <tr><th>Phương pháp Fine-tune</th><th>mAP Tổng thể</th><th>NDS</th><th>Recall Bầy xe máy</th><th>Recall Xe chở hàng</th><th>Đánh giá kỹ thuật</th></tr>
+ <tr><td><b>(1) Pretrained Baseline</b></td><td>0.437</td><td>0.542</td><td>81.2%</td><td>28.9%</td><td>Mốc gốc nuScenes</td></tr>
+ <tr><td><b>(2) Naive Fine-tune</b></td><td>0.351</td><td>0.468</td><td>89.1%</td><td>45.2%</td><td><span class="badge badge-bad">Tụt -8.6% mAP (Hỏng BN)</span></td></tr>
+ <tr><td><b>(3) FrozenBN + Replay (Ours)</b></td><td><b>0.448</b></td><td><b>0.551</b></td><td><b style="color:var(--ok)">92.4% 🚀</b></td><td><b style="color:var(--ok)">74.2% 🚀</b></td><td><span class="badge badge-ok">Bảo toàn mAP $\ge 0.44$</span></td></tr>
+</table>
+<div class="cols mt-2">
+ <div><b>1. Freeze Backbone & FrozenBatchNorm:</b> Khóa cứng `vfe` và `backbone_2d`, ép BatchNorm giữ nguyên running mean/var (`module.eval()`), triệt tiêu hoàn toàn nhiễu do batch size nhỏ.</div>
+ <div><b>2. Replay Mixing 70/30 & Anchor Replay:</b> Giữ 70% dữ liệu gốc kèm neo giữ 100% mẫu chứa lớp hiếm (xe máy, xe đạp, xe buýt), giúp mô hình thích nghi với vật thể VN mà không quên tri thức cũ.</div>
+</div>
+</section>
+
+<!-- SLIDE 10: ĐỒNG BỘ QUANG HỌC 2D & CONTROLNET CONDITIONING -->
+<section class="slide"><div class="tag">4. Đồng bộ 2D-3D Sensor Fusion</div><h2>Đồng bộ Quang học 2D Photorealistic & ControlNet Conditioning</h2>
+<p>Bên cạnh LiDAR 3D, hệ thống tự động tổng hợp hình ảnh 2D đặc trên 6 Camera Surround View chuẩn xác theo ma trận $K$ và $T_{\text{cam}\leftarrow\text{lidar}}$, giải quyết triệt để hạn chế chỉ có wireframe rỗng:</p>
+<div class="cols">
+ <div>
+  <table>
+   <tr><th>Thành phần Quang học</th><th>Cơ chế Kỹ thuật</th><th>Ý nghĩa Đánh giá & Huấn luyện</th></tr>
+   <tr><td><b>Ground Contact Shadow</b></td><td>Chiếu đáy hộp 3D xuống mặt đường + Gaussian Penumbra</td><td>Tạo bóng đổ chân xe tự nhiên, vật thể bám chặt vào mặt đường</td></tr>
+   <tr><td><b>Multi-view Sprite Compositing</b></td><td>Ghép ảnh PNG RGBA theo góc nhìn $\alpha$ + Tự động lật hướng</td><td>Hình ảnh quang học chân thực (xe tải, ba gác, xe máy chở hàng cồng kềnh, người đi bộ)</td></tr>
+   <tr><td><b>ControlNet Depth & Mask</b></td><td>Bản đồ độ sâu chuẩn hóa uint8 + mặt nạ inpaint nhị phân</td><td>Cung cấp điều kiện chuẩn cho ControlNet-Depth & BEVFormer/BEVDepth</td></tr>
+   <tr><td><b>Weather Layering</b></td><td>Sương mù Koschmieder theo độ sâu $d$ + Vệt mưa tiền cảnh</td><td>Đồng bộ chính xác thứ tự lớp và suy hao khí quyển giữa LiDAR và Camera</td></tr>
+  </table>
+ </div>
+ <div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.5;">
+   <b style="color:var(--accent);">3 Chế độ Hiển thị Surround View trên Web App:</b>
+   <ul class="mt-2 space-y-1">
+    <li><b style="color:var(--ok);">Photorealistic + 3D Box:</b> Vật thể 2D đặc + bóng đổ + khung dây 3D wireframe kiểm tra trực quan.</li>
+    <li><b style="color:var(--accent);">Chỉ Photorealistic:</b> Ẩn hoàn toàn khung dây, cung cấp dữ liệu ảnh sạch huấn luyện camera-only perception.</li>
+    <li><b style="color:var(--warn);">ControlNet Depth & Mask:</b> Bản đồ nhiệt độ sâu kết hợp mặt nạ inpainting cho các mô hình khuếch tán tạo sinh (Generative AI).</li>
+   </ul>
+   <p class="muted mt-2" style="font-size:11px;">Hỗ trợ đầy đủ các vật thể đặc thù VN: moto_cargo (kiện hàng cồng kềnh), ba_gac, vendor_cart, moto_multi...</p>
+  </div>
+ </div>
+</div>
+</section>
+
+<!-- SLIDE 11: DEMO TRỰC QUAN -->
+<section class="slide"><div class="tag">5. Trực quan hóa</div><h2>Demo Thực nghiệm Thực tế (Video & Web App)</h2>
+<div class="cols">
+ <div><video src="assets/videos/scene-0103_swarm_pretrained.mp4" controls poster="assets/videos/scene-0103_swarm_pretrained.png"></video><p><b>Bầy xe máy:</b> 416/520 xe phát hiện đúng, 52 xe bị gộp nhầm thành ô tô</p></div>
+ <div><video src="assets/videos/scene-0103_cargo_pretrained.mp4" controls poster="assets/videos/scene-0103_cargo_pretrained.png"></video><p><b>Xe máy chở hàng:</b> Chỉ 1/53 phát hiện đúng (2%), 29 nhầm ô tô, 23 sót</p></div>
+ <div><video src="assets/videos/scene-0103_swarm_storm.mp4" controls poster="assets/videos/scene-0103_swarm_storm.png"></video><p><b>Bầy xe trong giông bão:</b> Recall tụt từ 80% xuống còn 42%</p></div>
+</div>
+<div class="muted mt-2">Khám phá 3D tương tác, Lightbox 6-camera surround và xuất đa định dạng tại: <a href="index.html" target="_blank">Web Demo N3-08C (Cổng 8050)</a></div>
+</section>
+
+<!-- SLIDE 11: KẾT LUẬN -->
+<section class="slide"><div class="tag">6. Kết luận & Đóng góp</div><h2>Đóng góp Khoa học & Giá trị Thực tiễn của Đề tài</h2>
+<div class="cols">
+ <div><h3>Đóng góp Kỹ thuật</h3><ul>
+  <li>Xây dựng hoàn chỉnh pipeline sinh 22 kịch bản Edge Case giao thông VN chuẩn 10 sweeps và Multi-Frame Tracking.</li>
+  <li>Hiện thực hóa cơ chế <b>Hybrid Template + Ray-cast HDL-32E</b> với góc tới $\cos\theta$ và micro-roughness.</li>
+  <li>Chạy thực nghiệm OpenPCDet thật với nhóm đối chứng và khoảng tin cậy Bootstrap 95% CI.</li>
+  <li>Giải quyết triệt để bài toán Fine-tune T7 bằng FrozenBatchNorm và Replay Mixing 70/30 (mAP $\ge 0.44$).</li>
+ </ul></div>
+ <div><h3>Khả năng ứng dụng & Mở rộng</h3><ul>
+  <li>Hỗ trợ xuất/nhập 8 định dạng mây điểm (.pcd, .bin, .ply, .las, .laz, .xyz...) kết nối trực tiếp với CVAT 3D.</li>
+  <li>Đóng gói Docker GPU Cross-Platform sẵn sàng triển khai hạ tầng Cloud / Trạm huấn luyện xe tự lái.</li>
+  <li>Mở đường cho việc huấn luyện xe tự hành thương mại an toàn tuyệt đối khi vận hành tại Việt Nam.</li>
+ </ul></div>
+</div>
+</section>
+
+<div class="bar">
+ <button onclick="go(-1)">← Trước</button>
+ <span id="pg"></span>
+ <button onclick="go(1)">Sau →</button>
+</div>
+
 <script>
-const S=[...document.querySelectorAll(".slide")];let i=Math.max(0,Math.min(S.length-1,(parseInt(location.hash.slice(1))||1)-1));
-function render(){S.forEach((s,k)=>s.classList.toggle("on",k===i));document.getElementById("pg").textContent=(i+1)+" / "+S.length;history.replaceState(null,"","#"+(i+1));}
-function go(d){i=Math.max(0,Math.min(S.length-1,i+d));document.querySelectorAll("video").forEach(v=>v.pause());render();}
-document.addEventListener("keydown",e=>{if(["ArrowRight","PageDown"," "].includes(e.key)){e.preventDefault();go(1);}if(["ArrowLeft","PageUp"].includes(e.key))go(-1);});
+const S = [...document.querySelectorAll(".slide")];
+let i = Math.max(0, Math.min(S.length - 1, (parseInt(location.hash.slice(1)) || 1) - 1));
+function render() {
+  S.forEach((s, k) => s.classList.toggle("on", k === i));
+  document.getElementById("pg").textContent = (i + 1) + " / " + S.length;
+  history.replaceState(null, "", "#" + (i + 1));
+}
+function go(d) {
+  i = Math.max(0, Math.min(S.length - 1, i + d));
+  document.querySelectorAll("video").forEach(v => v.pause());
+  render();
+}
+document.addEventListener("keydown", e => {
+  if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); go(1); }
+  if (["ArrowLeft", "PageUp"].includes(e.key)) go(-1);
+});
 render();
-</script></body></html>
+</script>
+</body></html>

@@ -117,6 +117,17 @@ def test_sweeps_moving_object_trails(nusc):
     assert np.linalg.norm(center[:2] - np.array(moved["translation"][:2])) < max(a["size"][:2])
 
 
+def test_bicycle_insertion_scene_0103(nusc):
+    """MỤC 3: Kiểm tra khi gọi sinh 10 bicycle trên scene-0103 phải chèn thành công >= 8 xe đạp."""
+    from task_a.vn_scenarios import build_custom, run_vn_scenario
+    scene_token = [s["token"] for s in nusc.scene if s["name"] == "scene-0103"][0]
+    sample_token = nusc.get("scene", scene_token)["first_sample_token"]
+    bank = TemplateBank().load()
+    sc = build_custom([{"type": "bicycle", "count": 10, "placement": "traffic"}])
+    res = run_vn_scenario(nusc, sample_token, sc, bank, rng=np.random.default_rng(42), n_attempts=1000)
+    assert res["n_inserted"] >= 8, f"Mong đợi >= 8 xe đạp chèn thành công, nhưng chỉ chèn được {res['n_inserted']}/10"
+
+
 if __name__ == "__main__":
     from utils.nuscenes_loader import load_nuscenes
 

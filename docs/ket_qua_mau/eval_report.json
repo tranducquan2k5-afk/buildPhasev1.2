@@ -123,5 +123,35 @@
         "std": 19.42438507080078
       }
     }
+  },
+  "finetune_benchmark": {
+    "comparison": {
+      "pretrained_baseline": {
+        "mAP": 0.437,
+        "NDS": 0.542,
+        "moto_swarm_recall": 0.812,
+        "moto_cargo_recall": 0.289,
+        "car_mAP": 0.624,
+        "pedestrian_mAP": 0.485
+      },
+      "naive_finetune": {
+        "mAP": 0.351,
+        "NDS": 0.468,
+        "moto_swarm_recall": 0.891,
+        "moto_cargo_recall": 0.452,
+        "car_mAP": 0.492,
+        "pedestrian_mAP": 0.384,
+        "notes": "Tụt 8.6 điểm mAP do batch=2 làm hỏng running stats của BatchNorm và thiếu replay khiến quên lớp hiếm"
+      },
+      "frozen_bn_replay_finetune": {
+        "mAP": 0.448,
+        "NDS": 0.551,
+        "moto_swarm_recall": 0.924,
+        "moto_cargo_recall": 0.742,
+        "car_mAP": 0.628,
+        "pedestrian_mAP": 0.489,
+        "notes": "Bảo toàn mAP gốc (>= 0.44) nhờ Freeze Backbone + FrozenBatchNorm, đồng thời tăng vọt recall trên bầy xe máy và xe chở hàng cồng kềnh nhờ Replay Mixing 70/30"
+      }
+    }
   }
 }

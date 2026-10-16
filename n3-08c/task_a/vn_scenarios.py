@@ -42,42 +42,61 @@ def _s(rng):
 
 
 def _traffic(rng):      # cùng chiều, trước / sau, làn ego / làn bên
-    return _s(rng) * rng.uniform(4, 30), rng.uniform(-4, 4), D(rng.uniform(-10, 10))
+    return _s(rng) * rng.uniform(9.0, 30.0), rng.uniform(-4, 4), D(rng.uniform(-10, 10))
 
 
 def _ahead(rng):        # phía trước trong / cạnh làn ego
-    return rng.uniform(5, 25), rng.uniform(-3, 3), D(rng.uniform(-8, 8))
+    return rng.uniform(9.0, 25.0), rng.uniform(-3, 3), D(rng.uniform(-8, 8))
 
 
 def _curb_slow(rng):    # sát lề, phía trước
-    return rng.uniform(6, 30), _s(rng) * rng.uniform(1.5, 3.5), D(rng.uniform(-5, 5))
+    return rng.uniform(9.0, 30.0), _s(rng) * rng.uniform(1.5, 3.5), D(rng.uniform(-5, 5))
 
 
 def _curb(rng):         # lấn từ lề xuống lòng đường, đứng / đi chậm 2 chiều
-    return rng.uniform(4, 25), _s(rng) * rng.uniform(2.5, 5.5), (0 if rng.random() < 0.5 else np.pi) + D(
+    return rng.uniform(9.0, 25.0), _s(rng) * rng.uniform(2.5, 5.5), (0 if rng.random() < 0.5 else np.pi) + D(
         rng.uniform(-10, 10))
 
 
+def _vendor_right_curb(rng):
+    """Đặt xe đẩy hàng rong sát lề đường bên phải (y < 0), cự ly an toàn x >= 9.0m, tránh tim đường và nắp capo xe chủ."""
+    return rng.uniform(9.0, 26.0), -rng.uniform(2.8, 4.2), D(rng.uniform(-6, 6))
+
+
 def _dart(rng):         # lao ngang trước xe
-    return rng.uniform(5, 20), rng.uniform(-3, 3), _s(rng) * D(rng.uniform(70, 110))
+    return rng.uniform(9.0, 20.0), rng.uniform(-3, 3), _s(rng) * D(rng.uniform(70, 110))
 
 
 def _wander(rng):       # đứng / đi chậm hướng bất kỳ trên lòng đường
-    return rng.uniform(8, 30), rng.uniform(-3, 3), rng.uniform(-np.pi, np.pi)
+    return rng.uniform(9.0, 30.0), rng.uniform(-3, 3), rng.uniform(-np.pi, np.pi)
 
 
 def _ped_road(rng):     # người đi bộ dưới lòng đường cạnh xe hàng rong
-    return rng.uniform(4, 20), _s(rng) * rng.uniform(2, 5), rng.uniform(-np.pi, np.pi)
+    return rng.uniform(9.0, 20.0), _s(rng) * rng.uniform(2, 5), rng.uniform(-np.pi, np.pi)
 
 
 def _group_cross(rng):  # tâm nhóm người băng ngang trước xe, hướng vuông góc làn
-    return rng.uniform(6, 20), rng.uniform(-3, 3), _s(rng) * D(rng.uniform(75, 105))
+    return rng.uniform(9.0, 20.0), rng.uniform(-3, 3), _s(rng) * D(rng.uniform(75, 105))
+
+
+def _swarm_lane(rng):
+    """Bố trí bầy quanh xe (15 m): bám song song trục làn đường,
+    làn phải (y <= 0) đi thuận chiều (yaw ~ 0 +- 8 deg),
+    làn trái (y > 0) đi ngược chiều (yaw ~ pi +- 8 deg). Tuyệt đối không xoay ngang 90 độ."""
+    while True:
+        x, y = rng.uniform(-15, 15), rng.uniform(-6, 6)
+        if np.hypot(x, y) >= 9.0 and np.hypot(x - 1.3, y) <= 15:
+            if y > 0.0:
+                yaw = np.pi + D(rng.uniform(-8, 8))
+            else:
+                yaw = D(rng.uniform(-8, 8))
+            return x, y, yaw
 
 
 def _crowd(rng):        # đám đông đi lại quanh xe trong 15 m, hướng bất kỳ (chợ, tan trường)
     while True:
-        x, y = rng.uniform(-8, 15), rng.uniform(-8, 8)
-        if np.hypot(x - 1.3, y) <= 15:
+        x, y = rng.uniform(-15, 15), rng.uniform(-8, 8)
+        if np.hypot(x, y) >= 9.0 and np.hypot(x - 1.3, y) <= 15:
             return x, y, rng.uniform(-np.pi, np.pi)
 
 
@@ -111,24 +130,24 @@ VN_SCENARIOS: Dict[str, VNScenario] = {s.name: s for s in [
     VNScenario("cargo_moto", "xe máy chở hàng cồng kềnh", [Group("rc", ("moto_cargo",), (1, 2), _ahead, (3, 7))]),
     VNScenario("ba_gac_slow", "xe ba gác chạy chậm sát lề", [Group("rc", ("ba_gac",), (1, 1), _curb_slow, (1.5, 4))]),
     VNScenario("tow_moto", "xe máy kéo thùng hàng", [Group("rc", ("moto_tow",), (1, 1), _ahead, (3, 6))]),
-    VNScenario("vendor_curb", "xe đẩy hàng rong lấn xuống lòng đường",
-               [Group("rc", ("vendor_cart",), (1, 2), _curb, (0, 1))]),
+    VNScenario("vendor_curb", "xe đẩy hàng rong sát lề đường bên phải",
+               [Group("rc", ("vendor_cart",), (1, 2), _vendor_right_curb, (0, 0.8))]),
     VNScenario("dog_dart", "chó lao ngang trước xe", [Group("rc", ("dog",), (1, 1), _dart, (3, 6))]),
     VNScenario("cow_road", "trâu / bò trên lòng đường", [Group("rc", ("cow",), (1, 1), _wander, (0, 0.8))]),
     VNScenario("ox_cart_road", "xe bò đi chậm trong làn",
                [Group("rc", ("cow",), (1, 1), _curb_slow, (0.8, 1.5), trailer="ox_wagon")]),
     VNScenario("rush_hour", "giờ cao điểm: bầy xe máy 1 người / 2-3 người / chở hàng + xe ba gác",
-               [Group("bank", MOTO, (6, 10), _swarm, (4, 9)), Group("rc", ("moto_multi",), (2, 4), _swarm, (4, 9)),
-                Group("rc", ("moto_cargo",), (1, 2), _swarm, (3, 7)), Group("rc", ("ba_gac",), (1, 1), _curb_slow, (2, 4))]),
+               [Group("bank", MOTO, (6, 10), _swarm_lane, (4, 9)), Group("rc", ("moto_multi",), (2, 4), _swarm_lane, (4, 9)),
+                Group("rc", ("moto_cargo",), (1, 2), _swarm_lane, (3, 7)), Group("rc", ("ba_gac",), (1, 1), _curb_slow, (2, 4))]),
     VNScenario("market_street", "phố chợ: xe hàng rong + người đi bộ dưới lòng đường",
-               [Group("rc", ("vendor_cart",), (1, 2), _curb, (0, 1)),
+               [Group("rc", ("vendor_cart",), (1, 2), _vendor_right_curb, (0, 0.8)),
                 Group("bank", ("human.pedestrian.adult",), (2, 4), _ped_road, (0.5, 1.5))]),
     VNScenario("ped_group_cross", "nhóm 3-8 người băng ngang cùng lúc",
                [Group("bank", PEDS, (3, 8), _group_cross, (0.8, 1.6), cluster=(1.5, 2.5))]),
     VNScenario("ped_crowd", "đám đông 10-20 người dưới lòng đường quanh xe",
                [Group("bank", PEDS, (10, 20), _crowd, (0.3, 1.5))]),
     VNScenario("animal_in_traffic", "chó lao ra giữa bầy xe máy",
-               [Group("bank", MOTO, (6, 10), _swarm, (4, 9)), Group("rc", ("dog",), (1, 1), _dart, (3, 6))]),
+               [Group("bank", MOTO, (6, 10), _swarm_lane, (4, 9)), Group("rc", ("dog",), (1, 1), _dart, (3, 6))]),
 ]}
 
 
@@ -155,7 +174,7 @@ CUSTOM_TYPES: Dict[str, tuple] = {
 PLACEMENTS: Dict[str, tuple] = {
     "traffic": (_traffic, None),        # cùng chiều, trước / sau, làn ego / làn bên
     "ahead": (_ahead, None),            # phía trước trong / cạnh làn ego
-    "swarm": (_swarm, None),            # quanh xe trong 15 m, cùng chiều
+    "swarm": (_swarm_lane, None),       # quanh xe trong 15 m, bám song song trục làn đường
     "curb": (_curb_slow, None),         # sát lề phía trước
     "roadside": (_curb, None),          # lấn từ lề xuống lòng đường, 2 chiều
     "crossing": (_dart, None),          # băng ngang trước xe
@@ -178,6 +197,8 @@ def build_custom(groups: Sequence[dict]) -> VNScenario:
         total += n
         src, what, speed, trailer = CUSTOM_TYPES[g["type"]]
         pose, cluster = PLACEMENTS[g.get("placement", "traffic")]
+        if g["type"] == "vendor_cart":
+            pose = _vendor_right_curb
         out.append(Group(src, what, (n, n), pose, speed, trailer=trailer, cluster=cluster, label=g["type"]))
     if not out or total > MAX_CUSTOM_OBJECTS:
         raise ValueError(f"cần 1-{MAX_CUSTOM_OBJECTS} object (đang {total})")
@@ -228,7 +249,9 @@ def run_vn_scenario(nusc, target_token: str, sc: VNScenario, bank: TemplateBank,
                 if tpl is None:
                     rej("no_template")
                     continue
-                yaw, insert = float(wrap_angle(np.arctan2(y, x) - tpl["view_angle"])), insert_object
+                # Giữ nguyên hướng yaw_req song song trục làn đường (tuyệt đối không xoay ngang 90 độ)
+                yaw = float(wrap_angle(yaw_req))
+                insert = insert_object
                 min_pts = config.MIN_VISIBLE_POINTS
             else:
                 tpl, yaw, insert, min_pts = build_model(g.what[0], rng), yaw_req, insert_raycast, 1
@@ -239,7 +262,7 @@ def run_vn_scenario(nusc, target_token: str, sc: VNScenario, bank: TemplateBank,
                 parts.append((tr, x - back * np.cos(yaw), y - back * np.sin(yaw)))
             reason = None
             for p, px, py in parts:
-                reason = reason or check_position(area, blockers + new_anns, p["size"], px, py, yaw, ground, points)
+                reason = reason or check_position(area, blockers + new_anns, p["size"], px, py, yaw, ground, points, min_ego_dist=9.0)
             if reason:
                 rej(reason)
                 continue

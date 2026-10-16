@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -74,10 +74,10 @@ def generate(req: GenerateRequest):
 
 
 @app.get("/api/cameras/{task_id}")
-def cameras(task_id: str):
+def cameras(task_id: str, mode: str = "photorealistic_box"):
     if not (TASKS / task_id / "state.json").is_file():
         raise HTTPException(404, "không có task")
-    return engine.cameras(task_id)
+    return engine.cameras(task_id, mode=mode)
 
 
 @app.post("/api/detect/{task_id}")
@@ -107,9 +107,26 @@ def case(name: str):
         raise HTTPException(404, "không có trường hợp")
 
 
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...)):
+    """Upload point cloud tùy chỉnh (.pcd, .bin, .ply, .las, .laz, .xyz, .csv, .npy)."""
+    try:
+        content = await file.read()
+        return engine.upload_point_cloud_data(content, file.filename)
+    except Exception as e:
+        raise HTTPException(400, f"Lỗi đọc mây điểm tải lên: {e}")
+
+
 @app.get("/api/download/{task_id}/{kind}")
 def download(task_id: str, kind: str):
-    files = {"pcd": "augmented.pcd", "bin": "augmented.bin", "labels": "labels.json", "zip": "bundle.zip"}
+    files = {
+        "pcd": "augmented.pcd",
+        "bin": "augmented.bin",
+        "ply": "augmented.ply",
+        "xyz": "augmented.xyz",
+        "labels": "labels.json",
+        "zip": "bundle.zip"
+    }
     if kind not in files or "/" in task_id or "\\" in task_id or ".." in task_id:
         raise HTTPException(400, "yêu cầu không hợp lệ")
     p = TASKS / task_id / files[kind]

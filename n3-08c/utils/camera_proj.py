@@ -43,37 +43,55 @@ def project(T: np.ndarray, K: np.ndarray, xyz: np.ndarray, w: int = 1600, h: int
 
 
 def render_camera(nusc, sample_token: str, cam: str, boxes: Sequence[dict], obj_points: Optional[np.ndarray] = None,
-                  size=(800, 450), weather: Optional[str] = None, level: Optional[str] = None, seed: int = 0):
-    """Ảnh camera (PIL RGB) + box chiếu lên. boxes: dict có translation/size/rotation (annotation) + "status"
-    (ok / missed / confused / inserted / real) + "inserted" (bool). Returns (ảnh, số object chèn thấy được)."""
+                  size=(800, 450), weather: Optional[str] = None, level: Optional[str] = None, seed: int = 0,
+                  mode: str = "photorealistic_box"):
+    """Ảnh camera (PIL RGB) + kết xuất 2D quang học hoặc box chiếu lên.
+    mode: 'photorealistic_box' | 'photorealistic' | 'controlnet_depth' | 'wireframe_only'.
+    Returns (ảnh PIL RGB, số object chèn thấy được)."""
     from PIL import Image, ImageDraw
-
     from utils.visualization import to_box
+
     T, K, img_path = lidar_to_cam(nusc, sample_token, cam)
     img = Image.open(img_path).convert("RGB").resize(size)
-    if weather:
-        from task_b.camera_weather import apply_camera_weather
-        img = Image.fromarray(apply_camera_weather(np.asarray(img), weather, level, np.random.default_rng(seed)))
-    dr = ImageDraw.Draw(img, "RGBA")
     sx, sy = size[0] / 1600, size[1] / 900
+
     n_seen = 0
-    for b in sorted(boxes, key=lambda b: bool(b.get("inserted"))):  # object thật trước, object chèn đè lên
-        cuv, cok, cfront = project(T, K, to_box(b).corners().T)
-        if not cfront.all() or not cok.any():
+    for b in boxes:
+        if not b.get("inserted"):
             continue
-        ins = bool(b.get("inserted"))
-        n_seen += ins
-        rgb = STATUS_RGB.get(b.get("status", "inserted" if ins else "real"), STATUS_RGB["inserted"])
-        for a, c in BOX_EDGES:
-            dr.line([(cuv[a, 0] * sx, cuv[a, 1] * sy), (cuv[c, 0] * sx, cuv[c, 1] * sy)],
-                    fill=rgb + ((255,) if ins else (110,)), width=2 if ins else 1)
-    if obj_points is not None and len(obj_points):
-        uv, ok, _ = project(T, K, obj_points[:, :3])
-        for u, v in uv[ok]:
-            dr.ellipse([u * sx - 1.6, v * sy - 1.6, u * sx + 1.6, v * sy + 1.6], fill=OBJ_RGB + (255,))
+        cuv, cok, cfront = project(T, K, to_box(b).corners().T)
+        if cfront.all() and cok.any():
+            n_seen += 1
+
+    if mode in ("photorealistic_box", "photorealistic", "photorealistic_only", "controlnet_depth"):
+        from task_a.camera_synthesis import synthesize_camera_view
+        rendered_arr = synthesize_camera_view(
+            np.asarray(img), boxes, T, K,
+            weather=weather, level=level, mode=mode, seed=seed
+        )
+        img = Image.fromarray(rendered_arr)
+    else:
+        if weather:
+            from task_b.camera_weather import apply_camera_weather
+            img = Image.fromarray(apply_camera_weather(np.asarray(img), weather, level, np.random.default_rng(seed)))
+        dr = ImageDraw.Draw(img, "RGBA")
+        for b in sorted(boxes, key=lambda b: bool(b.get("inserted"))):
+            cuv, cok, cfront = project(T, K, to_box(b).corners().T)
+            if not cfront.all() or not cok.any():
+                continue
+            ins = bool(b.get("inserted"))
+            rgb = STATUS_RGB.get(b.get("status", "inserted" if ins else "real"), STATUS_RGB["inserted"])
+            for a, c in BOX_EDGES:
+                dr.line([(cuv[a, 0] * sx, cuv[a, 1] * sy), (cuv[c, 0] * sx, cuv[c, 1] * sy)],
+                        fill=rgb + ((255,) if ins else (110,)), width=2 if ins else 1)
+        if obj_points is not None and len(obj_points):
+            uv, ok, _ = project(T, K, obj_points[:, :3])
+            for u, v in uv[ok]:
+                dr.ellipse([u * sx - 1.6, v * sy - 1.6, u * sx + 1.6, v * sy + 1.6], fill=OBJ_RGB + (255,))
+
     return img, int(n_seen)
 
 
-def surround(nusc, sample_token: str, boxes: Sequence[dict], obj_points=None, **kw) -> Dict[str, tuple]:
+def surround(nusc, sample_token: str, boxes: Sequence[dict], obj_points=None, mode: str = "photorealistic_box", **kw) -> Dict[str, tuple]:
     """{camera: (ảnh PIL, số object chèn thấy được)} cho 6 camera."""
-    return {cam: render_camera(nusc, sample_token, cam, boxes, obj_points, seed=i, **kw) for i, cam in enumerate(CAMS)}
+    return {cam: render_camera(nusc, sample_token, cam, boxes, obj_points, seed=i, mode=mode, **kw) for i, cam in enumerate(CAMS)}

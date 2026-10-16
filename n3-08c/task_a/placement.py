@@ -59,7 +59,7 @@ def sample_valid_position(drivable_polygon: BaseGeometry, existing_boxes: Sequen
     Returns (x, y, yaw) hoặc None nếu hết n_attempts.
     """
     rng = rng or np.random.default_rng()
-    r_min, r_max = config.MIN_DISTANCE, config.MAX_DISTANCE
+    r_min, r_max = max(config.MIN_DISTANCE, 9.0), config.MAX_DISTANCE
     for _ in range(n_attempts):
         r = np.sqrt(rng.uniform(r_min ** 2, r_max ** 2))  # đều theo diện tích
         phi = rng.uniform(-np.pi, np.pi)
@@ -94,12 +94,16 @@ def count_obstacle_points(points: np.ndarray, center_xy: Sequence[float], size: 
 
 def check_position(area: BaseGeometry, existing_boxes: Sequence[dict], size: Sequence[float],
                    x: float, y: float, yaw: float, ground=None, points: Optional[np.ndarray] = None,
-                   max_obstacle_points: int = config.MAX_OBSTACLE_POINTS) -> Optional[str]:
+                   max_obstacle_points: int = config.MAX_OBSTACLE_POINTS,
+                   min_ego_dist: float = 0.0) -> Optional[str]:
     """None nếu (x, y, yaw) hợp lệ, ngược lại lý do reject (REJECT_REASONS).
 
-    Hợp lệ: footprint nằm trong area, LiDAR thấy mặt đất tại đó (ground.is_supported), không va chạm BEV,
+    Hợp lệ: khoảng cách tới ego vehicle >= min_ego_dist để bảo vệ nắp capo xe ego,
+    footprint nằm trong area, LiDAR thấy mặt đất tại đó (ground.is_supported), không va chạm BEV,
     ít điểm vật cản không nhãn trong footprint (cần points + ground).
     """
+    if min_ego_dist > 0.0 and np.hypot(x, y) < min_ego_dist:
+        return "collision"
     if not area.contains(bev_footprint((x, y), size, yaw)):
         return "off_area"
     if ground is not None and not ground.is_supported(x, y):
@@ -140,7 +144,7 @@ def sample_position_for_template(area: BaseGeometry, existing_boxes: Sequence[di
         x, y = r * np.cos(phi), r * np.sin(phi)
         yaw = float(wrap_angle(phi - view))
         reason = check_position(area, existing_boxes, template["size"], x, y, yaw, ground, points,
-                                max_obstacle_points)
+                                max_obstacle_points, min_ego_dist=9.0)
         if reason is None:
             return float(x), float(y), yaw
         if stats is not None:

@@ -7,8 +7,29 @@ import os
 # Thư mục gốc repo (cha của n3-08c\), không phụ thuộc vị trí clone
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def _find_dataroot() -> str:
+    # 1. Biến môi trường người dùng đặt
+    env_root = os.environ.get("NUSCENES_DATAROOT")
+    if env_root and os.path.isfile(os.path.join(env_root, "v1.0-mini", "sample.json")):
+        return env_root
+    # 2. Thư mục cục bộ trong repo
+    local_root = os.path.join(PROJECT_ROOT, "datasets", "nuscenes")
+    if os.path.isfile(os.path.join(local_root, "v1.0-mini", "sample.json")):
+        return local_root
+    # 3. Các vị trí quen thuộc trong môi trường dev
+    candidates = [
+        os.path.abspath(os.path.join(PROJECT_ROOT, "..", "..", "nuscenes-project", "datasets", "nuscenes")),
+        os.path.abspath(os.path.join(PROJECT_ROOT, "..", "nuscenes-project", "datasets", "nuscenes")),
+        r"D:\VinAI\Build phase\nuscenes-project\datasets\nuscenes",
+        r"C:\VinAI\Build phase\nuscenes-project\datasets\nuscenes",
+    ]
+    for cand in candidates:
+        if os.path.isfile(os.path.join(cand, "v1.0-mini", "sample.json")):
+            return cand
+    return local_root
+
 # ===== Dataset =====
-DATAROOT: str = os.environ.get("NUSCENES_DATAROOT", os.path.join(PROJECT_ROOT, "datasets", "nuscenes"))
+DATAROOT: str = _find_dataroot()
 
 VERSION: str = "v1.0-mini"
 LIDAR_CHANNEL: str = "LIDAR_TOP"
@@ -23,7 +44,7 @@ VIS_DIR: str = os.path.join(OUTPUT_DIR, "vis")               # ảnh BEV
 SEED: int = 42
 
 # ===== Task A: thresholds =====
-MIN_DISTANCE: float = 3.0           # khoảng cách tối thiểu từ sensor tới object chèn (m)
+MIN_DISTANCE: float = 9.0           # khoảng cách tối thiểu từ sensor tới object chèn (m)
 MAX_DISTANCE: float = 70.0          # khoảng cách tối đa (m)
 COLLISION_IOU_THRESH: float = 0.0   # BEV IoU > ngưỡng này = va chạm
 MIN_TEMPLATE_POINTS: int = 20       # template ít điểm hơn bị bỏ

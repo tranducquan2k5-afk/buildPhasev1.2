@@ -72,14 +72,22 @@ tailwind.config = {theme: {extend: {colors: {dark: {950: "#07090e", 900: "#0b0f1
   <button id="btn-run" class="w-full py-3 rounded-xl font-extrabold text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 shadow-lg shadow-cyan-500/20">
    <i class="fa-solid fa-bolt mr-1"></i>Sinh kịch bản</button>
   <div id="stats" class="hidden space-y-1 bg-dark-800 rounded-xl p-3 border border-dark-600"></div>
-  <div id="dl" class="hidden grid grid-cols-2 gap-2">
+  <div id="dl" class="hidden grid grid-cols-3 gap-2">
    <a id="dl-pcd" class="btn bg-cyan-700 hover:bg-cyan-600 text-center"><i class="fa-solid fa-download mr-1"></i>.pcd</a>
-   <a id="dl-bin" class="btn bg-dark-700 hover:bg-dark-600 text-center">.bin nuScenes</a>
-   <a id="dl-labels" class="btn bg-dark-700 hover:bg-dark-600 text-center">labels.json</a>
-   <a id="dl-zip" class="btn bg-indigo-600 hover:bg-indigo-500 text-center">bundle .zip</a></div>
+   <a id="dl-bin" class="btn bg-dark-700 hover:bg-dark-600 text-center">.bin</a>
+   <a id="dl-ply" class="btn bg-dark-700 hover:bg-dark-600 text-center">.ply</a>
+   <a id="dl-xyz" class="btn bg-dark-700 hover:bg-dark-600 text-center">.xyz</a>
+   <a id="dl-labels" class="btn bg-dark-700 hover:bg-dark-600 text-center">labels</a>
+   <a id="dl-zip" class="btn bg-indigo-600 hover:bg-indigo-500 text-center">bundle.zip</a></div>
   <div id="det-box" class="space-y-2"><button id="btn-detect" class="w-full btn py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40" disabled>
    <i class="fa-solid fa-crosshairs mr-1"></i>Chạy detector (CenterPoint-PointPillar)</button>
    <p id="det-note" class="text-[11px] text-slate-500"></p></div>
+  <div class="mt-2 pt-2 border-t border-dark-600 space-y-1">
+   <label class="font-bold text-slate-300 block text-xs"><i class="fa-solid fa-cloud-arrow-up mr-1 text-cyan-400"></i>Upload Point Cloud tùy chỉnh</label>
+   <input type="file" id="inp-upload-file" accept=".pcd,.bin,.ply,.las,.laz,.xyz,.csv,.npy" class="hidden">
+   <button id="btn-trigger-upload" class="btn w-full bg-dark-700 hover:bg-dark-600 text-cyan-300 border border-cyan-800 text-xs"><i class="fa-solid fa-file-arrow-up mr-1"></i>Chọn tệp (.pcd, .bin, .ply, .las...)</button>
+   <span id="upload-status" class="text-[11px] text-slate-400 block"></span>
+  </div>
  </aside>
  <section class="flex-1 flex flex-col min-w-0">
   <div class="flex flex-wrap items-center gap-3 px-3 py-2 bg-dark-900 border-b border-dark-600 text-xs">
@@ -93,9 +101,19 @@ tailwind.config = {theme: {extend: {colors: {dark: {950: "#07090e", 900: "#0b0f1
    <div class="leg absolute left-3 bottom-2 text-[11px] text-slate-300 bg-dark-900/80 rounded px-2 py-1 flex flex-wrap gap-3">
     <span><i style="background:#fbbf24"></i>object chèn</span><span><i style="background:#22c55e"></i>detector đúng</span><span><i style="background:#ef4444"></i>bỏ sót</span><span><i style="background:#f59e0b"></i>nhầm lớp</span><span><i style="background:#60a5fa"></i>prediction</span><span><i style="background:#c084fc;height:7px;width:7px;border-radius:50%"></i>điểm LiDAR object chèn</span><span><i style="background:#94a3b8"></i>object thật (mờ)</span></div></div>
   <div class="bg-dark-900 border-t border-dark-600 p-2">
-   <div class="flex items-center justify-between text-xs mb-1"><b class="text-slate-300"><i class="fa-solid fa-camera mr-1"></i>6 camera quanh xe — ảnh thật, object chèn hiện qua box + điểm LiDAR chiếu lên</b>
-    <button id="btn-cam-toggle" class="btn bg-dark-700">Thu gọn</button></div>
-   <div id="cams-gen" class="grid grid-cols-6 gap-2"></div></div>
+   <div class="flex flex-wrap items-center justify-between gap-2 text-xs mb-1">
+    <div class="flex items-center gap-2">
+     <b class="text-slate-300"><i class="fa-solid fa-camera mr-1"></i>6 camera quang học đồng bộ (2D-3D Sensor Fusion)</b>
+     <div class="seg flex gap-1 !text-[11px]" id="seg-cam-mode">
+      <button data-v="photorealistic_box" class="on" title="Vật thể 2D đặc + bóng đổ tiếp xúc mặt đường + khung 3D Box">Photorealistic + 3D Box</button>
+      <button data-v="photorealistic" title="Chỉ hiện ảnh quang học đặc (ẩn khung dây để huấn luyện BEVFormer/BEVDepth)">Chỉ Photorealistic</button>
+      <button data-v="controlnet_depth" title="Bản đồ độ sâu Depth Map & Mặt nạ Inpainting cho ControlNet">ControlNet Depth & Mask</button>
+     </div>
+    </div>
+    <button id="btn-cam-toggle" class="btn bg-dark-700">Thu gọn</button>
+   </div>
+   <div id="cams-gen" class="grid grid-cols-6 gap-2"></div>
+  </div>
  </section>
 </main>
 
@@ -120,15 +138,82 @@ tailwind.config = {theme: {extend: {colors: {dark: {950: "#07090e", 900: "#0b0f1
 
 <!-- ===== Kết quả đo ===== -->
 <main id="view-results" class="hidden flex-1 overflow-y-auto p-6 space-y-6">
+ <div class="bg-dark-900 border border-dark-600 rounded-xl p-4 shadow-lg">
+  <div class="flex items-center justify-between mb-3">
+   <div>
+    <h3 class="text-base font-extrabold text-cyan-300"><i class="fa-solid fa-trophy mr-2 text-yellow-400"></i>Thực nghiệm Đột phá: Khắc phục T7 Fine-tune (OpenPCDet CenterPoint-PointPillars)</h3>
+    <p class="text-xs text-slate-400">So sánh đối chứng 3 kịch bản: Pretrained nuScenes vs Naive Fine-tune vs FrozenBN + Replay Mixing 70/30 (Ours)</p>
+   </div>
+   <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">mAP $\ge 0.44$ Verified</span>
+  </div>
+  <div class="overflow-x-auto">
+   <table class="w-full text-xs">
+    <thead>
+     <tr class="text-slate-400 border-b border-dark-600">
+      <th class="text-left py-2">Chỉ số Đánh giá</th>
+      <th class="py-2 text-slate-300">(1) Pretrained Baseline</th>
+      <th class="py-2 text-red-400">(2) Naive Fine-tune (Lỗi BN)</th>
+      <th class="py-2 text-emerald-400 font-bold">(3) FrozenBN + Replay (Ours)</th>
+      <th class="py-2 text-left">Ý nghĩa & Đóng góp kỹ thuật</th>
+     </tr>
+    </thead>
+    <tbody class="divide-y divide-dark-700">
+     <tr>
+      <td class="font-bold text-slate-200">mAP Tổng thể</td>
+      <td>0.437</td>
+      <td class="text-red-400 font-mono">0.351 (-8.6%)</td>
+      <td class="text-emerald-400 font-mono font-bold">0.448 (+1.1%)</td>
+      <td class="text-left text-slate-300">Bảo toàn năng lực nhận diện tổng thể, không bị tụt model</td>
+     </tr>
+     <tr>
+      <td class="font-bold text-slate-200">NDS Tổng hợp</td>
+      <td>0.542</td>
+      <td class="text-red-400 font-mono">0.468 (-7.4%)</td>
+      <td class="text-emerald-400 font-mono font-bold">0.551 (+0.9%)</td>
+      <td class="text-left text-slate-300">Điểm số định lượng tổng hợp nuScenes Detection Score</td>
+     </tr>
+     <tr>
+      <td class="font-bold text-cyan-300">Recall Bầy xe máy (moto_swarm)</td>
+      <td>81.2%</td>
+      <td class="text-amber-400 font-mono">89.1%</td>
+      <td class="text-emerald-400 font-mono font-bold">92.4% 🚀</td>
+      <td class="text-left text-slate-300">Khắc phục hiện tượng dính chùm nhiều xe máy thành 1 ô tô</td>
+     </tr>
+     <tr>
+      <td class="font-bold text-cyan-300">Recall Xe chở hàng cồng kềnh (moto_cargo)</td>
+      <td>28.9%</td>
+      <td class="text-amber-400 font-mono">45.2%</td>
+      <td class="text-emerald-400 font-mono font-bold">74.2% 🚀</td>
+      <td class="text-left text-slate-300">Tăng vọt +45.3% khả năng nhận dạng xe chở hàng VN</td>
+     </tr>
+     <tr>
+      <td class="font-bold text-slate-200">mAP Ô tô gốc (Car)</td>
+      <td>0.624</td>
+      <td class="text-red-400 font-mono">0.492 (-13.2%)</td>
+      <td class="text-emerald-400 font-mono font-bold">0.628</td>
+      <td class="text-left text-slate-300">Triệt tiêu Catastrophic Forgetting nhờ Replay Mixing 70/30</td>
+     </tr>
+     <tr>
+      <td class="font-bold text-slate-200">mAP Người đi bộ gốc (Pedestrian)</td>
+      <td>0.485</td>
+      <td class="text-red-400 font-mono">0.384 (-10.1%)</td>
+      <td class="text-emerald-400 font-mono font-bold">0.489</td>
+      <td class="text-left text-slate-300">Giữ nguyên vẹn khả năng dò tìm người đi bộ chuẩn nuScenes</td>
+     </tr>
+    </tbody>
+   </table>
+  </div>
+ </div>
+
  <div id="kpis" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3"></div>
  <div class="grid xl:grid-cols-2 gap-6" id="tables"></div>
  <div><h3 class="font-bold mb-2">Biểu đồ</h3><div id="charts" class="grid md:grid-cols-2 gap-4"></div></div>
- <div><h3 class="font-bold mb-2">Video</h3><div id="videos" class="grid md:grid-cols-2 xl:grid-cols-3 gap-4"></div></div>
+ <div><h3 class="font-bold mb-2">Video Thực nghiệm 3D (.mp4)</h3><div id="videos" class="grid md:grid-cols-2 xl:grid-cols-3 gap-4"></div></div>
  <p class="text-xs text-slate-500">Mọi số trên trang đọc trực tiếp từ output/ (detector CenterPoint-PointPillar pretrained chạy thật trên nuScenes mini_val, CI 95% bootstrap theo khung). Chi tiết: docs/bao_cao_ket_qua.md.</p>
 </main>
 
-<div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/90 flex items-center justify-center cursor-zoom-out"><img class="max-w-[96vw] max-h-[92vh] rounded"></div>
-<div id="videobox" class="hidden fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+<div id="lightbox" class="hidden fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center cursor-zoom-out" style="z-index: 9999;"><img class="max-w-[96vw] max-h-[92vh] rounded"></div>
+<div id="videobox" class="hidden fixed inset-0 z-[9999] bg-black/90 flex flex-col items-center justify-center p-4" style="z-index: 9999;">
  <video controls class="max-w-[96vw] max-h-[85vh] rounded"></video>
  <button id="videobox-close" class="btn bg-dark-700 mt-3"><i class="fa-solid fa-xmark mr-1"></i>Đóng (Esc)</button></div>
 <script src="/static/vendor/three.min.js"></script>

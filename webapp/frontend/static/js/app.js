@@ -37,6 +37,7 @@ function customGroups() {
     count: Math.max(0, +r.querySelector(".c-count").value || 0), placement: r.querySelector(".c-place").value})).filter(g => g.count > 0);
 }
 function loadCustomPreset(name) { $("#custom-rows").innerHTML = ""; CUSTOM_PRESETS[name].forEach(([t, n, p]) => customRow(t, n, p)); }
+let CAM_MODE = "photorealistic_box";
 const viewers = {};
 
 async function api(url, opt) {
@@ -81,6 +82,21 @@ async function initGen() {
   seg("seg-disp", v => viewers.gen.setDisplay(v));
   seg("seg-view", v => viewers.gen.setView(v, GEN_DATA ? centerOf(GEN_DATA.boxes) : [0, 0]));
   $("#inp-psize").oninput = e => viewers.gen.setPointSize(+e.target.value);
+  seg("seg-cam-mode", async v => {
+    CAM_MODE = v;
+    if (TASK) {
+      $("#loading").classList.remove("hidden");
+      $("#loading-text").textContent = "Đang kết xuất 6 camera quang học (" + v + ")…";
+      try {
+        const res = await api(`/api/cameras/${TASK}?mode=${CAM_MODE}`);
+        renderCams($("#cams-gen"), res.cameras);
+      } catch (e) {
+        alertBox(e.message);
+      } finally {
+        $("#loading").classList.add("hidden");
+      }
+    }
+  });
   $("#btn-cam-toggle").onclick = () => { const g = $("#cams-gen"); g.classList.toggle("hidden"); $("#btn-cam-toggle").textContent = g.classList.contains("hidden") ? "Mở rộng" : "Thu gọn"; viewers.gen.resize(); };
   $("#btn-rand").onclick = () => $("#inp-seed").value = Math.floor(Math.random() * 10000);
   META = await api("/api/meta");
@@ -115,6 +131,43 @@ async function initGen() {
   loadCustomPreset("Giờ cao điểm VN");
   $("#btn-run").onclick = runGen;
   $("#btn-detect").onclick = runDetect;
+
+  // Xử lý upload point cloud đa định dạng
+  const inpUpload = $("#inp-upload-file");
+  if (inpUpload) {
+    $("#btn-trigger-upload").onclick = () => inpUpload.click();
+    inpUpload.onchange = async () => {
+      if (!inpUpload.files.length) return;
+      const file = inpUpload.files[0];
+      $("#upload-status").textContent = `Đang tải lên ${file.name}…`;
+      $("#loading").classList.remove("hidden");
+      $("#loading-text").textContent = `Đang xử lý ${file.name} (chuyển đổi đa định dạng)…`;
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        const resp = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!resp.ok) throw new Error(await resp.text());
+        const r = await resp.json();
+        TASK = r.task_id;
+        GEN_DATA = r.preview;
+        viewers.gen.setData({augmented: r.preview.augmented, original: r.preview.original, obj: r.preview.obj, boxes: [], preds: [], stride: 4});
+        $("#stats").innerHTML = `<div class="flex justify-between"><b class="text-cyan-300">Tùy chỉnh: ${file.name}</b><span class="text-emerald-400 font-mono">${r.stats.elapsed_ms} ms</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Số điểm LiDAR</span><span class="font-mono">${r.stats.points_after.toLocaleString()}</span></div>`;
+        $("#stats").classList.remove("hidden");
+        ["pcd", "bin", "ply", "xyz", "zip"].forEach(k => {
+          const el = $(`#dl-${k}`);
+          if (el && r.downloads[k]) el.href = r.downloads[k];
+        });
+        $("#dl").classList.remove("hidden");
+        $("#upload-status").textContent = `✓ Đã nạp ${r.stats.points_after.toLocaleString()} điểm từ ${file.name}`;
+      } catch (err) {
+        alertBox("Lỗi upload: " + err.message);
+        $("#upload-status").textContent = "❌ Tải lên thất bại.";
+      } finally {
+        $("#loading").classList.add("hidden");
+      }
+    };
+  }
 }
 
 async function runGen() {
@@ -138,11 +191,14 @@ async function runGen() {
          <span class="${g.placed < g.requested ? "text-amber-400" : "text-emerald-400"}">${g.placed}/${g.requested}</span></div>`).join("")}</div>` : ""}
       <div class="text-[11px] text-slate-500">Vị trí bị loại: ${rej}</div><div id="det-summary"></div>`;
     $("#stats").classList.remove("hidden");
-    ["pcd", "bin", "labels", "zip"].forEach(k => $(`#dl-${k}`).href = r.downloads[k]);
+    ["pcd", "bin", "ply", "xyz", "labels", "zip"].forEach(k => {
+      const el = $(`#dl-${k}`);
+      if (el && r.downloads[k]) el.href = r.downloads[k];
+    });
     $("#dl").classList.remove("hidden");
     $("#btn-detect").disabled = !(META.detector && body.sweeps);
-    $("#loading-text").textContent = "Đang chiếu lên 6 camera…";
-    renderCams($("#cams-gen"), (await api(`/api/cameras/${TASK}`)).cameras);
+    $("#loading-text").textContent = "Đang kết xuất 6 camera quang học…";
+    renderCams($("#cams-gen"), (await api(`/api/cameras/${TASK}?mode=${CAM_MODE}`)).cameras);
   } catch (e) { alertBox(e.message); }
   $("#loading").classList.add("hidden");
 }
@@ -157,7 +213,7 @@ async function runDetect() {
     viewers.gen.setData({augmented: GEN_DATA.augmented, original: GEN_DATA.original, obj: GEN_DATA.obj, boxes: GEN_DATA.boxes, preds: r.preds, stride: 4});
     const sm = r.summary;
     $("#det-summary").innerHTML = `<div class="mt-1 pt-1 border-t border-dark-600"><b>Detector:</b> đúng <b class="text-emerald-400">${sm.detected}</b>/${sm.total} · nhầm lớp <b class="text-amber-400">${sm.confused}</b> · bỏ sót <b class="text-red-400">${sm.missed}</b></div>`;
-    renderCams($("#cams-gen"), (await api(`/api/cameras/${TASK}`)).cameras);
+    renderCams($("#cams-gen"), (await api(`/api/cameras/${TASK}?mode=${CAM_MODE}`)).cameras);
   } catch (e) { alertBox(e.message); }
   finally { $("#loading").classList.add("hidden"); }
 }
